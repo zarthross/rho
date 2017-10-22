@@ -203,6 +203,7 @@ object Dependencies {
   lazy val json4sJackson       = "org.json4s"                 %% "json4s-jackson"        % json4s.revision
   lazy val swaggerModels       = "io.swagger"                  % "swagger-models"        % "1.5.16"
   lazy val swaggerCore         = "io.swagger"                  % "swagger-core"          % swaggerModels.revision
+  lazy val jsonSchemaValidator = "com.github.fge"              % "json-schema-validator" % "2.2.6"
   lazy val logbackClassic      = "ch.qos.logback"              % "logback-classic"       % "1.2.3"
   lazy val uadetector          = "net.sf.uadetector"           % "uadetector-resources"  % "2014.10"
   lazy val shapeless           = "com.chuusai"                %% "shapeless"             % "2.3.2"
@@ -219,7 +220,8 @@ object Dependencies {
     json4s,
     json4sJackson,
     swaggerCore,
-    swaggerModels
+    swaggerModels,
+    jsonSchemaValidator % "test"
   )
 
   lazy val exampleDeps = libraryDependencies ++= Seq(
