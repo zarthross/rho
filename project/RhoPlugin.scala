@@ -11,9 +11,9 @@ object RhoPlugin extends AutoPlugin {
   val homepageUrl = s"https://github.com/$githubRepo"
 
   /** Some helper functions **************************************/
-  def nexusRepoFor(version: String): Resolver = {
+  def nexusRepoFor(isSnapshot: Boolean): Resolver = {
     val nexus = "https://oss.sonatype.org/"
-    if (isSnapshot(version)) "snapshots" at nexus + "content/repositories/snapshots"
+    if (isSnapshot) "snapshots" at nexus + "content/repositories/snapshots"
     else "releases" at nexus + "service/local/staging/deploy/maven2"
   }
 
@@ -39,6 +39,4 @@ object RhoPlugin extends AutoPlugin {
     )
     opts
   }
-
-  def isSnapshot(version: String): Boolean = version.endsWith("-SNAPSHOT")
 }

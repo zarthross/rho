@@ -119,7 +119,7 @@ lazy val publishing = Seq(
   // Don't publish root pom.  It's not needed.
   packagedArtifacts in file(".") := Map.empty,
   publishArtifact in Test := false,
-  publishTo in ThisBuild := Some(nexusRepoFor(version.value)),
+  publishTo in ThisBuild := Some(nexusRepoFor(isSnapshot.value)),
   scmInfo in ThisBuild := {
     val base = s"github.com/${RhoPlugin.githubRepo}"
     Some(
