@@ -57,7 +57,7 @@ lazy val docs = project
       `rho-hal`,
       `rho-swagger`
     ),
-    git.remoteRepo := "git@github.com:http4s/rho.git",
+    git.remoteRepo := s"git@github.com:${RhoPlugin.githubRepo}.git",
     GhPagesKeys.cleanSite := VersionedGhPages.cleanSite0.value,
     GhPagesKeys.synchLocal := VersionedGhPages.synchLocal0.value,
     siteMappings := {
@@ -121,7 +121,7 @@ lazy val publishing = Seq(
   publishArtifact in Test := false,
   publishTo in ThisBuild := Some(nexusRepoFor(version.value)),
   scmInfo in ThisBuild := {
-    val base = "github.com/http4s/rho"
+    val base = s"github.com/${RhoPlugin.githubRepo}"
     Some(
       ScmInfo(url(s"https://$base"),
               s"scm:git:https://$base",

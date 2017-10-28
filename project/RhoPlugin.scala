@@ -7,7 +7,8 @@ object RhoPlugin extends AutoPlugin {
 
   override def trigger = allRequirements
 
-  val homepageUrl = "https://github.com/http4s/rho"
+  val githubRepo = "http4s/rho"
+  val homepageUrl = s"https://github.com/$githubRepo"
 
   /** Some helper functions **************************************/
   def nexusRepoFor(version: String): Resolver = {
