@@ -2,12 +2,12 @@ import sbt._
 
 object RhoPlugin extends AutoPlugin {
   object autoImport {
-    val apiVersion = taskKey[(Int, Int)]("Defines the API compatibility version for the project.")
+    val apiVersion = settingKey[(Int, Int)]("Defines the API compatibility version for the project.")
   }
 
   override def trigger = allRequirements
 
-  val githubRepo = "http4s/rho"
+  val githubRepo = "zarthross/rho"
   val homepageUrl = s"https://github.com/$githubRepo"
 
   /** Some helper functions **************************************/

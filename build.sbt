@@ -2,17 +2,11 @@ import sbt._
 import Keys._
 import spray.revolver.RevolverPlugin._
 
-import com.typesafe.sbt.SbtGhPages.ghpages
-import com.typesafe.sbt.SbtGhPages.GhPagesKeys
+import com.typesafe.sbt.SbtGit.GitKeys._
 
 import com.typesafe.sbt.SbtSite.SiteKeys.siteMappings
-import com.typesafe.sbt.SbtSite.site
 
 import com.typesafe.sbt.SbtGit.git
-
-import sbtunidoc.Plugin.ScalaUnidoc
-import sbtunidoc.Plugin.unidocSettings
-import sbtunidoc.Plugin.UnidocKeys._
 
 import scala.util.Properties.envOrNone
 
@@ -39,10 +33,8 @@ lazy val `rho-swagger` = project
 
 lazy val docs = project
   .in(file("docs"))
+  .enablePlugins(ScalaUnidocPlugin,SiteScaladocPlugin, GhpagesPlugin)
   .settings(buildSettings)
-  .settings(unidocSettings)
-  .settings(ghpages.settings ++ site.settings)
-  .settings(site.includeScaladoc())
   .settings(Seq(
     dontPublish,
     description := "Api Documentation",
@@ -58,9 +50,22 @@ lazy val docs = project
       `rho-swagger`
     ),
     git.remoteRepo := s"git@github.com:${RhoPlugin.githubRepo}.git",
-    GhPagesKeys.cleanSite := VersionedGhPages.cleanSite0.value,
-    GhPagesKeys.synchLocal := VersionedGhPages.synchLocal0.value,
-    siteMappings := {
+    ghpagesNoJekyll := true,
+    /*ghpagesSynchLocal := {
+      VersionedGhPages.updateIndex(ghpagesUpdatedRepository.value, apiVersion.value)
+      ghpagesSynchLocal.value
+    },*/
+    includeFilter in ghpagesCleanSite := {
+      val v = s"./api/${apiVersion.value._1}.${apiVersion.value._2}"
+
+      println(s"V: $v")
+      v
+    },
+    excludeFilter in ghpagesCleanSite :=
+      new FileFilter { def accept(f: File) =
+          (ghpagesRepository.value / "CNAME").getCanonicalPath == f.getCanonicalPath
+      },
+    mappings in makeSite := {
       val (major, minor) = apiVersion.value
       for {
         (f, d) <- (mappings in (ScalaUnidoc, packageDoc)).value
