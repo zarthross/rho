@@ -72,9 +72,6 @@ package object swagger {
     def isStream: Boolean =
       t <:< typeOf[Stream[G forSome { type G[_] }, _]]
 
-    def isEffect(et: Type): Boolean =
-      t <:< et
-
     def isUnitOrVoid: Boolean =
       t =:= typeOf[Unit] || t =:= typeOf[java.lang.Void]
 

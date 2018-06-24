@@ -5,8 +5,6 @@ import org.http4s.rho.{RequestLineBuilder, UriConvertible}
 import shapeless.ops.hlist.Prepend
 import shapeless.{::, HList}
 
-import scala.reflect.runtime.universe.TypeTag
-
 /** Actual elements which build up the AST */
 object PathAST {
 
@@ -51,7 +49,7 @@ object PathAST {
       * @return a new [[TypedPath]] that will capture a uri segment.
       */
     def /(symbol: Symbol): TypedPath[F, String :: T] = {
-      val capture = PathCapture(symbol.name, None, StringParser.strParser, implicitly[TypeTag[String]])
+      val capture = PathCapture[F, String](symbol.name, None, StringParser.strParser[F], ResultMetadata.simpleStringResultMetadata)
       TypedPath(PathAnd(this.rule, capture))
     }
 
@@ -75,7 +73,7 @@ object PathAST {
       *
       * @param query Query capture rule
       * @tparam T1 The types of elements captured by query.
-      * @return A [[QueryBuilder]] with which to continue building the route.
+      * @return A [[org.http4s.rho.QueryBuilder]] with which to continue building the route.
       */
     def +?[T1 <: HList](query: TypedQuery[F, T1])(implicit prep: Prepend[T1, T]): RequestLineBuilder[F, prep.Out] =
       RequestLineBuilder(rule, query.rule)
@@ -101,7 +99,7 @@ object PathAST {
 
   case class PathMatch(s: String) extends PathOperation
 
-  case class PathCapture[F[_]](name: String, description: Option[String], parser: StringParser[F, _], m: TypeTag[_]) extends PathOperation
+  case class PathCapture[F[_], T](name: String, description: Option[String], parser: StringParser[F, T], m: ResultPrimitiveMetadata[T]) extends PathOperation
 
   case object CaptureTail extends PathOperation
 

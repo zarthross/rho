@@ -17,20 +17,17 @@ object TypeBuilder {
 
   private[this] val logger = getLogger
 
-  def collectModels(t: Type, alreadyKnown: Set[Model], sfs: SwaggerFormats, et: Type): Set[Model] =
-    try collectModels(t.dealias, alreadyKnown, Set.empty, sfs, et)
+  def collectModels(t: Type, alreadyKnown: Set[Model]): Set[Model] =
+    try collectModels(t.dealias, alreadyKnown, Set.empty)
     catch { case NonFatal(_) => Set.empty }
 
-  private def collectModels(t: Type, alreadyKnown: Set[Model], known: Set[Type], sfs: SwaggerFormats, et: Type): Set[Model] = {
+  private def collectModels(t: Type, alreadyKnown: Set[Model], known: Set[Type]): Set[Model] = {
 
     def go(t: Type, alreadyKnown: Set[Model], known: Set[Type]): Set[Model] =
       t.dealias match {
 
-        case tpe if sfs.customSerializers.isDefinedAt(tpe) =>
-          sfs.customSerializers(tpe)
-
         case tpe if tpe.isNothingOrNull || tpe.isUnitOrVoid =>
-          alreadyKnown ++ modelToSwagger(tpe, sfs)
+          alreadyKnown ++ modelToSwagger(tpe)
 
         case tpe if tpe.isEither || tpe.isMap =>
           go(tpe.typeArgs.head, alreadyKnown, tpe.typeArgs.toSet) ++
@@ -43,11 +40,6 @@ object TypeBuilder {
 
         case tpe if tpe.isStream =>
           val ntpe = tpe.typeArgs.apply(1)
-          if (!known.exists(_ =:= ntpe)) go(ntpe, alreadyKnown, known + ntpe)
-          else Set.empty
-
-        case tpe if tpe.isEffect(et) =>
-          val ntpe = tpe.typeArgs.head
           if (!known.exists(_ =:= ntpe)) go(ntpe, alreadyKnown, known + ntpe)
           else Set.empty
 
@@ -65,7 +57,7 @@ object TypeBuilder {
 
         case tpe@TypeRef(_, sym: Symbol, tpeArgs: List[Type]) if isCaseClass(sym) =>
           val ctor = sym.asClass.primaryConstructor.asMethod
-          val models = alreadyKnown ++ modelToSwagger(tpe, sfs)
+          val models = alreadyKnown ++ modelToSwagger(tpe)
           val generics = tpe.typeArgs.foldLeft(List[Model]()) { (acc, t) =>
             acc ++ go(t, alreadyKnown, tpe.typeArgs.toSet)
           }
@@ -85,7 +77,7 @@ object TypeBuilder {
 
         case tpe@TypeRef(_, sym, _) if isSumType(sym) =>
           // TODO promote methods on sealed trait from children to model
-          modelToSwagger(tpe, sfs).map(addDiscriminator(sym)).toSet.flatMap { (model: Model) =>
+          modelToSwagger(tpe).map(addDiscriminator(sym)).toSet.flatMap { (model: Model) =>
             val refmodel = RefModel(model.id, model.id2, model.id2)
             val children =
               sym.asClass.knownDirectSubclasses.flatMap { sub =>

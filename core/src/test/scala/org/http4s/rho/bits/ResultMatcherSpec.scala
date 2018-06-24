@@ -10,12 +10,10 @@ import org.http4s.{Status => HStatus}
 import org.specs2.mutable.Specification
 import shapeless.HList
 
-import scala.reflect.runtime.universe._
-
 class ResultMatcherSpec extends Specification {
 
   class TRhoService[F[_]] extends bits.MethodAliases {
-    var statuses: Set[(Status, Type)] = Set.empty
+    var statuses: Set[(Status, ResultMetadata.Tpe)] = Set.empty
 
     implicit final protected def compileSrvc: CompileService[F, RhoRoute.Tpe[F]] = {
       new CompileService[F, RhoRoute.Tpe[F]] {
@@ -48,8 +46,8 @@ class ResultMatcherSpec extends Specification {
       }
 
       srvc.statuses.map(_._1) should_== Set(NotFound.status, Ok.status)
-      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head =:= weakTypeOf[String] must_== true
-      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head =:= weakTypeOf[Array[Byte]] must_== true
+      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head === ResultMetadata[String] must_== true
+      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head === ResultMetadata[Array[Byte]] must_== true
     }
 
     "Match two results with same stat different result type" in {
@@ -72,7 +70,7 @@ class ResultMatcherSpec extends Specification {
       }
 
       srvc.statuses.map(_._1) should_== Set(NoContent.status)
-      srvc.statuses.head._2 =:= typeOf[Unit]
+      srvc.statuses.head._2 === ResultMetadata[Unit]
     }
 
     "Match three results with different status but same result type" in {
@@ -142,8 +140,8 @@ class ResultMatcherSpec extends Specification {
       }
 
       srvc.statuses.map(_._1) should_== Set(Ok.status, NotFound.status)
-      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head =:= weakTypeOf[FooA] must_== true
-      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head =:= weakTypeOf[FooB] must_== true
+      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head === ResultMetadata[FooA] must_== true
+      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head === ResultMetadata[FooB] must_== true
     }
   }
 }

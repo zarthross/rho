@@ -25,7 +25,7 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   def collectPaths[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Map[String, Path] = {
     val pairs = mkPathStrs(rr).map { ps =>
       val o = mkOperation(ps, rr)
-      val p0 = s.paths.get(ps).getOrElse(Path())
+      val p0 = s.paths.getOrElse(ps, Path())
       val p1 = rr.method.name.toLowerCase match {
         case "get"     => p0.copy(get = o.some)
         case "put"     => p0.copy(put = o.some)
@@ -46,25 +46,25 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   def collectDefinitions[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Map[String, Model] = {
     val initial: Set[Model] = s.definitions.values.toSet
     (collectResultTypes(rr) ++ collectCodecTypes(rr) ++ collectQueryTypes(rr))
-      .foldLeft(initial)((s, tpe) => s ++ TypeBuilder.collectModels(tpe, s, formats, etag.tpe))
+      .foldLeft(initial)((s, tpe) => s ++ TypeBuilder.collectModels(tpe, s))
       .map(m => m.id2 -> m)
       .toMap
   }
 
-  def collectResultTypes[F[_]](rr: RhoRoute[F, _]): Set[Type] =
+  def collectResultTypes[F[_]](rr: RhoRoute[F, _]): Set[ResultMetadata.Tpe] =
     rr.resultInfo.collect {
       case TypeOnly(tpe)         => tpe
       case StatusAndType(_, tpe) => tpe
     }
 
-  def collectCodecTypes[F[_]](rr: RhoRoute[F, _]): Set[Type] =
+  def collectCodecTypes[F[_]](rr: RhoRoute[F, _]): Set[ResultMetadata.Tpe] =
     rr.router match {
       case r: CodecRouter[F, _, _] => Set(r.entityType)
       case _                    => Set.empty
     }
 
-  def collectQueryTypes[F[_]](rr: RhoRoute[F, _]): Seq[Type] = {
-    def go(stack: List[RequestRule[F]]): List[Type] =
+  def collectQueryTypes[F[_]](rr: RhoRoute[F, _]): Seq[ResultPrimitiveMetadata.Tpe] = {
+    def go(stack: List[RequestRule[F]]): List[ResultPrimitiveMetadata.Tpe] =
       stack match {
         case Nil                                         => Nil
         case AndRule(a, b)::xs                           => go(a::b::xs)
@@ -266,7 +266,7 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   }
 
   def mkPathParam[F[_]](name: String, description: Option[String], parser: StringParser[F, String]): PathParameter = {
-    val tpe = parser.typeTag.map(tag => getType(tag.tpe)).getOrElse("string")
+    val tpe = parser.metadata.map(tag => getType(tag.tpe)).getOrElse("string")
     PathParameter(`type` = tpe, name = name.some, description = description, required = true)
   }
 

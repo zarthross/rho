@@ -11,7 +11,6 @@ import org.log4s.getLogger
 import shapeless.{::, HList, HNil}
 
 import scala.language.implicitConversions
-import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
 
 package object rho extends Http4s {
@@ -29,20 +28,20 @@ trait RhoDsl[F[_]]
 
   private[this] val logger = getLogger
 
-  private val stringTag = implicitly[TypeTag[String]]
+  private val stringTag = ResultMetadata.simpleStringResultMetadata
 
   implicit def method(m: Method): PathBuilder[F, HNil] = new PathBuilder(m, PathEmpty)
 
   implicit def pathMatch(s: String): TypedPath[F, HNil] = TypedPath(PathMatch(s))
 
   implicit def pathMatch(s: Symbol): TypedPath[F, String :: HNil] =
-    TypedPath(PathCapture(s.name, None, StringParser.strParser, stringTag))
+    TypedPath(PathCapture[F, String](s.name, None, StringParser.strParser, stringTag))
 
   /**
    * Defines a parameter in query string that should be bound to a route definition.
    * @param name name of the parameter in query
    */
-  def param[T](name: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def param[T](name: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, None, None, _ => None)
 
   /**
@@ -50,22 +49,22 @@ trait RhoDsl[F[_]]
     * @param name name of the parameter in query
     * @param description description of the parameter
     */
-  def paramD[T](name: String, description: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramD[T](name: String, description: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, Some(description), None, _ => None)
 
   /** Define a query parameter with a default value */
-  def param[T](name: String, default: T)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def param[T](name: String, default: T)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, None, Some(default), _ => None)
 
   /** Define a query parameter with description and a default value */
-  def paramD[T](name: String, default: T, description: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramD[T](name: String, default: T, description: String)(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, Some(description), Some(default), _ => None)
 
   /** Define a query parameter that will be validated with the predicate
     *
     * Failure of the predicate results in a '403: BadRequest' response. */
   def param[T](name: String, validate: T => Boolean)
-                    (implicit F: Monad[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+                    (implicit F: Monad[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     paramR(name, {t =>
       if (validate(t)) None
       else Some(BadRequest(s"""Invalid query parameter: "$name" = "$t"""").widen)
@@ -75,7 +74,7 @@ trait RhoDsl[F[_]]
     *
     * Failure of the predicate results in a '403: BadRequest' response. */
   def paramD[T](name: String, description: String, validate: T => Boolean)
-                     (implicit F: Monad[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+                     (implicit F: Monad[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     paramRDescr(name, description, { t: T =>
       if (validate(t)) None
       else Some(BadRequest(s"""Invalid query parameter: "$name" = "$t"""").widen)
@@ -85,7 +84,7 @@ trait RhoDsl[F[_]]
     *
     * Failure of the predicate results in a '403: BadRequest' response. */
   def param[T](name: String, default: T, validate: T => Boolean)
-                    (implicit F: Monad[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+                    (implicit F: Monad[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     paramR(name, default, { t: T =>
       if (validate(t)) None
       else Some(BadRequest(s"""Invalid query parameter: "$name" = "$t"""").widen)
@@ -95,26 +94,26 @@ trait RhoDsl[F[_]]
     *
     * Failure of the predicate results in a '403: BadRequest' response. */
   def paramD[T](name: String, description: String, default: T, validate: T => Boolean)
-                     (implicit F: Monad[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+                     (implicit F: Monad[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     paramR(name, description, default, { t =>
       if (validate(t)) None
       else Some(BadRequest(s"""Invalid query parameter: "$name" = "$t"""").widen)
     })
 
   /** Defines a parameter in query string that should be bound to a route definition. */
-  def paramR[T](name: String, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramR[T](name: String, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, None, None, validate)
 
   /** Defines a parameter in query string with description that should be bound to a route definition. */
-  def paramRDescr[T](name: String, description: String, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramRDescr[T](name: String, description: String, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, Some(description), None, validate)
 
   /** Defines a parameter in query string that should be bound to a route definition. */
-  def paramR[T](name: String, default: T, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramR[T](name: String, default: T, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, None, Some(default), validate)
 
   /** Defines a parameter in query string with description that should be bound to a route definition. */
-  def paramR[T](name: String, description: String, default: T, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  def paramR[T](name: String, description: String, default: T, validate: T => Option[F[BaseResult[F]]])(implicit F: FlatMap[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     _paramR(name, Some(description), Some(default), validate)
 
   /** Create a query capture rule using the `Request`'s `Uri`
@@ -138,20 +137,20 @@ trait RhoDsl[F[_]]
   /**
    * Defines a path variable of a URI that should be bound to a route definition
    */
-  def pathVar[T](implicit parser: StringParser[F, T], m: TypeTag[T]): TypedPath[F, T :: HNil] =
-    pathVar(m.tpe.toString.toLowerCase)(parser)
+  def pathVar[T](implicit parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
+    pathVar(parser.metadata.name.toString.toLowerCase)(parser)
 
   /**
    * Defines a path variable of a URI that should be bound to a route definition
    */
   def pathVar[T](id: String)(implicit parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
-    TypedPath(PathCapture[F](id, None, parser, stringTag))
+    TypedPath(PathCapture[F,T](id, None, parser, parser.metadata))
 
   /**
     * Defines a path variable of a URI with description that should be bound to a route definition
     */
   def pathVar[T](id: String, description: String)(implicit parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
-    TypedPath(PathCapture[F](id, Some(description), parser, stringTag))
+    TypedPath(PathCapture[F, T](id, Some(description), parser, parser.metadata))
 
   /**
    * Helper to be able to define a path with one level only.
@@ -236,7 +235,7 @@ trait RhoDsl[F[_]]
     TypedHeader[F, R :: HNil](CaptureRule(f))
 
   /** Defines a parameter in query string that should be bound to a route definition. */
-  private def _paramR[T](name: String, description: Option[String], default: Option[T], validate: T => Option[F[BaseResult[F]]])(implicit F: Functor[F], parser: QueryParser[F, T], m: TypeTag[T]): TypedQuery[F, T :: HNil] =
+  private def _paramR[T](name: String, description: Option[String], default: Option[T], validate: T => Option[F[BaseResult[F]]])(implicit F: Functor[F], parser: QueryParser[F, T], m: ResultPrimitiveMetadata[T]): TypedQuery[F, T :: HNil] =
     genericRequestQueryCapture[T] { req =>
         val result = parser.collect(name, req.uri.multiParams, default)
         result.flatMap { r => validate(r) match {

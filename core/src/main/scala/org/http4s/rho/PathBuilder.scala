@@ -8,8 +8,6 @@ import org.http4s.rho.bits._
 import shapeless.ops.hlist.Prepend
 import shapeless.{::, HList, HNil}
 
-import scala.reflect.runtime.universe.TypeTag
-
 /**
  * The goal of a PathBuilder is to allow the composition of what is typically on the status
  * line of a HTTP request. That includes the request method, path, and query params.
@@ -59,7 +57,7 @@ final class PathBuilder[F[_], T <: HList](val method: Method, val path: PathRule
     * @return a new [[PathBuilder]] that will capture a uri segment.
     */
   def /(symbol: Symbol): PathBuilder[F, String :: T] = {
-    val capture = PathCapture(symbol.name, None, StringParser.strParser[F], implicitly[TypeTag[String]])
+    val capture = PathCapture[F, String](symbol.name, None, StringParser.strParser[F], ResultMetadata.simpleStringResultMetadata)
     new PathBuilder(method, PathAnd(path, capture))
   }
 
@@ -85,7 +83,7 @@ final class PathBuilder[F[_], T <: HList](val method: Method, val path: PathRule
   override def >>>[T1 <: HList](h2: TypedHeader[F, T1])(implicit prep: Prepend[T1, T]): Router[F, prep.Out] =
     Router(method, path, h2.rule)
 
-  override def decoding[R](decoder: EntityDecoder[F, R])(implicit F: Functor[F], t: TypeTag[R]): CodecRouter[F, T, R] =
+  override def decoding[R: ResultMetadata](decoder: EntityDecoder[F, R])(implicit F: Functor[F]): CodecRouter[F, T, R] =
     CodecRouter(>>>(TypedHeader[F, HNil](EmptyRule[F]())), decoder)
 
   override def makeRoute(action: Action[F, T]): RhoRoute[F, T] = RhoRoute(Router(method, path, EmptyRule[F]()), action)

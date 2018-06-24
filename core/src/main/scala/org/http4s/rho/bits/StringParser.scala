@@ -7,7 +7,6 @@ import java.util.{Date, UUID}
 
 import cats.Monad
 
-import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
 
 /** Parse values from a `String`
@@ -20,7 +19,7 @@ trait StringParser[F[_], T] extends ResponseGeneratorInstances[F] {
   def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, T]
 
   /** TypeTag of the type T */
-  def typeTag: Option[TypeTag[T]]
+  def metadata: ResultPrimitiveMetadata[T]
 
   def invalidNumberFormat[A](n : String)(implicit F: Monad[F]): FailureResponse[F] = FailureResponse.pure[F] {
     BadRequest.pure(s"Invalid number format: '$n'")
@@ -28,7 +27,7 @@ trait StringParser[F[_], T] extends ResponseGeneratorInstances[F] {
 }
 
 class BooleanParser[F[_]] extends StringParser[F, Boolean] {
-  override val typeTag: Some[TypeTag[Boolean]] = Some(implicitly[TypeTag[Boolean]])
+  override val metadata: ResultPrimitiveMetadata[Boolean] = ResultPrimitiveMetadata[Boolean]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Boolean] = s match {
     case "true"  => SuccessResponse(true)
@@ -38,7 +37,7 @@ class BooleanParser[F[_]] extends StringParser[F, Boolean] {
 }
 
 class DoubleParser[F[_]] extends StringParser[F, Double] {
-  override val typeTag: Some[TypeTag[Double]] = Some(implicitly[TypeTag[Double]])
+  override val metadata: ResultPrimitiveMetadata[Double] = ResultPrimitiveMetadata[Double]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Double] =
     try SuccessResponse(s.toDouble)
@@ -46,7 +45,7 @@ class DoubleParser[F[_]] extends StringParser[F, Double] {
 }
 
 class FloatParser[F[_]] extends StringParser[F, Float] {
-  override val typeTag: Some[TypeTag[Float]] = Some(implicitly[TypeTag[Float]])
+  override val metadata: ResultPrimitiveMetadata[Float] = ResultPrimitiveMetadata[Float]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Float] =
     try SuccessResponse(s.toFloat)
@@ -54,7 +53,7 @@ class FloatParser[F[_]] extends StringParser[F, Float] {
 }
 
 class IntParser[F[_]] extends StringParser[F, Int] {
-  override val typeTag: Some[TypeTag[Int]] = Some(implicitly[TypeTag[Int]])
+  override val metadata: ResultPrimitiveMetadata[Int] = ResultPrimitiveMetadata[Int]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Int] =
     try SuccessResponse(s.toInt)
@@ -62,7 +61,7 @@ class IntParser[F[_]] extends StringParser[F, Int] {
 }
 
 class LongParser[F[_]] extends StringParser[F, Long] {
-  override val typeTag: Some[TypeTag[Long]] = Some(implicitly[TypeTag[Long]])
+  override val metadata: ResultPrimitiveMetadata[Long] = ResultPrimitiveMetadata[Long]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Long] =
     try SuccessResponse(s.toLong)
@@ -70,7 +69,7 @@ class LongParser[F[_]] extends StringParser[F, Long] {
 }
 
 class ShortParser[F[_]] extends StringParser[F, Short] {
-  override val typeTag: Some[TypeTag[Short]] = Some(implicitly[TypeTag[Short]])
+  override val metadata: ResultPrimitiveMetadata[Short] = ResultPrimitiveMetadata[Short]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Short] =
     try SuccessResponse(s.toShort)
@@ -78,7 +77,7 @@ class ShortParser[F[_]] extends StringParser[F, Short] {
 }
 
 class DateParser[F[_]] extends StringParser[F, Date] {
-  override val typeTag = Some(implicitly[TypeTag[Date]])
+  override val metadata: ResultPrimitiveMetadata[Date] = ResultPrimitiveMetadata[Date]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Date] =
     try {
@@ -93,7 +92,7 @@ class DateParser[F[_]] extends StringParser[F, Date] {
 }
 
 class InstantParser[F[_]] extends StringParser[F, Instant] {
-  override val typeTag = Some(implicitly[TypeTag[Instant]])
+  override val metadata: ResultPrimitiveMetadata[Instant] = ResultPrimitiveMetadata[Instant]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Instant] =
     try {
@@ -107,7 +106,7 @@ class InstantParser[F[_]] extends StringParser[F, Instant] {
 }
 
 class UUIDParser[F[_]] extends StringParser[F, UUID] {
-  override val typeTag = Some(implicitly[TypeTag[UUID]])
+  override val metadata: ResultPrimitiveMetadata[UUID] = ResultPrimitiveMetadata[UUID]
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, UUID] =
     try SuccessResponse(UUID.fromString(s))
@@ -135,7 +134,7 @@ object StringParser {
 
   implicit def strParser[F[_]]: StringParser[F, String] = new StringParser[F, String] {
 
-    override val typeTag: Some[TypeTag[String]] = Some(implicitly[TypeTag[String]])
+    override val metadata: ResultPrimitiveMetadata[String] = ResultMetadata.simpleStringResultMetadata
 
     override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, String] =
       SuccessResponse(s)
