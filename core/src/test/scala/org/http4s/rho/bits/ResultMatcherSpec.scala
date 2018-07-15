@@ -46,8 +46,8 @@ class ResultMatcherSpec extends Specification {
       }
 
       srvc.statuses.map(_._1) should_== Set(NotFound.status, Ok.status)
-      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head === ResultMetadata[String] must_== true
-      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head === ResultMetadata[Array[Byte]] must_== true
+      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head must_== ResultMetadata[String]
+      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head must_== ResultMetadata[Array[Byte]]
     }
 
     "Match two results with same stat different result type" in {
@@ -124,9 +124,8 @@ class ResultMatcherSpec extends Specification {
 
       srvc.statuses.map(_._1) should_== Set(Ok.status, NotFound.status)
 
-      // the type equality for locally defined types is a bit "murkey" so we use the String name
-      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head.toString must_== "ModelA"
-      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head.toString must_== "ModelB"
+      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head must_== ResultMetadata[ModelA]
+      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head must_== ResultMetadata[ModelB]
     }
 
     "Match complex models as well as simple ones" in {
@@ -140,8 +139,8 @@ class ResultMatcherSpec extends Specification {
       }
 
       srvc.statuses.map(_._1) should_== Set(Ok.status, NotFound.status)
-      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head === ResultMetadata[FooA] must_== true
-      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head === ResultMetadata[FooB] must_== true
+      srvc.statuses.collect{ case (HStatus.Ok, t) => t }.head must_== ResultMetadata[FooA]
+      srvc.statuses.collect{ case (HStatus.NotFound, t) => t }.head must_== ResultMetadata[FooB]
     }
   }
 }

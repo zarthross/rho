@@ -34,11 +34,11 @@ abstract class EntityResponseGenerator[F[_]](val status: Status) extends Respons
   type T[_] <: Result.BaseResult[F]
 
   /** Generate a [[Result]] that carries the type information */
-  def apply[A](body: A)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[T[A]] =
+  def apply[A: ResultMetadata](body: A)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[T[A]] =
     apply(body, Headers.empty)
 
   /** Generate a [[Result]] that carries the type information */
-  def apply[A](body: A, headers: Headers)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[T[A]] = {
+  def apply[A: ResultMetadata](body: A, headers: Headers)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[T[A]] = {
     F.flatMap(w.toEntity(body)) { case Entity(proc, len) =>
       val hs = len match {
         case Some(l) => (w.headers ++ headers).put(`Content-Length`.unsafeFromLong(l))
@@ -49,11 +49,11 @@ abstract class EntityResponseGenerator[F[_]](val status: Status) extends Respons
   }
 
   /** Generate wrapper free `Response` */
-  def pure[A](body: A)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[Response[F]] =
+  def pure[A: ResultMetadata](body: A)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[Response[F]] =
     pure(body, Headers.empty)
 
   /** Generate wrapper free `Response` */
-  def pure[A](body: A, headers: Headers)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[Response[F]] = {
+  def pure[A: ResultMetadata](body: A, headers: Headers)(implicit F: Monad[F], w: EntityEncoder[F, A]): F[Response[F]] = {
     F.flatMap(w.toEntity(body)) { case Entity(proc, len) =>
       val hs = len match {
         case Some(l) => (w.headers ++ headers).put(`Content-Length`.unsafeFromLong(l))

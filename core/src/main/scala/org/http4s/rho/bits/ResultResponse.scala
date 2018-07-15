@@ -72,14 +72,14 @@ trait FailureResponseOps[F[_]] extends ResponseGeneratorInstances[F] {
     *
     * @param reason Description of the failure
     */
-  def badRequest[T](reason: T)(implicit F: Monad[F], w: EntityEncoder[F, T]): FailureResponse[F] =
+  def badRequest[T: ResultMetadata](reason: T)(implicit F: Monad[F], w: EntityEncoder[F, T]): FailureResponse[F] =
     FailureResponse[F](new ResponseReason(BadRequest.pure(reason)))
 
   /** Construct a `500 InternalServerError` FailureResponse
     *
     * @param reason Description of the failure
     */
-  def error[T](reason: T)(implicit F: Monad[F], w: EntityEncoder[F, T]): FailureResponse[F] =
+  def error[T: ResultMetadata](reason: T)(implicit F: Monad[F], w: EntityEncoder[F, T]): FailureResponse[F] =
     FailureResponse[F](new ResponseReason(InternalServerError.pure(reason)))
 }
 object FailureResponseOps {
