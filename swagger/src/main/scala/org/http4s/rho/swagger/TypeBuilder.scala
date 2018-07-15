@@ -252,7 +252,16 @@ object TypeBuilder {
         val stt = if (t.isOption) t.typeArgs.head else t
         ComplexDataType("string", qualifiedName = Option(stt.fullName))
       }*/
-      this.Boolean
+      t match {
+        case ResultMetadata.byteResultMetadata => this.Byte
+        case ResultMetadata.BooleanResultMetadata => this.Boolean
+        case ResultMetadata.DoubleResultMetadata => this.Double
+        case ResultMetadata.FloatResultMetadata => this.Float
+        case ResultMetadata.IntResultMetadata => this.Int
+        case ResultMetadata.LongResultMetadata => this.Long
+        case ResultMetadata.simpleStringResultMetadata => this.String
+        case _ => this.Byte // TODO
+      }
     }
   }
 }

@@ -121,8 +121,8 @@ object MyService {
   private implicit val format: DefaultFormats =
     DefaultFormats
 
-  implicit def jsonParser[F[_], A : TypeTag : ClassTag]: StringParser[F, A] = new StringParser[F, A] with FailureResponseOps[F] {
-    def metadata: ResultPrimitiveMetadata[A] = ResultPrimitiveMetadata.from[String].to[A]
+  implicit def jsonParser[F[_], A : TypeTag : ClassTag: ResultPrimitiveMetadata]: StringParser[F, A] = new StringParser[F, A] with FailureResponseOps[F] {
+    def metadata: ResultPrimitiveMetadata[A] = ResultPrimitiveMetadata[A]
 
     override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, A] = {
 

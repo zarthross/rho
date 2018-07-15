@@ -4,10 +4,12 @@ package swagger
 
 import _root_.io.swagger.util.Json
 import cats.Monad
+import com.fasterxml.jackson.databind.SerializationFeature
 import org.http4s.headers.`Content-Type`
 import org.http4s.rho.bits.PathAST.{PathMatch, TypedPath}
 import org.http4s.rho.swagger.models._
 import shapeless._
+
 import scala.reflect.runtime.universe._
 
 object SwaggerSupport {
@@ -83,6 +85,7 @@ abstract class SwaggerSupport[F[_]](implicit F: Monad[F]) extends SwaggerSyntax[
     lazy val response: F[OK[String]] = {
       val fOk = Ok.apply(
         Json.mapper()
+          .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(swagger.toJModel)
       )

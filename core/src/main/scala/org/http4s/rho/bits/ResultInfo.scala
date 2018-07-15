@@ -64,12 +64,12 @@ trait ResultPrimitiveMetadataInstances {
     }
   }
 
-  @volatile implicit lazy val byteResultMetadata: ResultPrimitiveMetadata[Byte] = instance[Byte]("Byte")
   @volatile implicit lazy val unitResultMetadata: ResultPrimitiveMetadata[Unit] = instance[Unit]("Unit")
+  @volatile implicit lazy val byteResultMetadata: ResultPrimitiveMetadata[Byte] = instance[Byte]("Byte")
   @volatile implicit lazy val BooleanResultMetadata: ResultPrimitiveMetadata[Boolean] = instance[Boolean]("Boolean")
   @volatile implicit lazy val DoubleResultMetadata: ResultPrimitiveMetadata[Double] = instance[Double]("Double")
   @volatile implicit lazy val FloatResultMetadata: ResultPrimitiveMetadata[Float] = instance[Float]("Float")
-  @volatile implicit lazy val IntResultMetadata: ResultPrimitiveMetadata[Int] = instance[Int]("Int")
+  @volatile implicit lazy val IntResultMetadata: ResultPrimitiveMetadata[Int] = instance[Int]("integer")
   @volatile implicit lazy val LongResultMetadata: ResultPrimitiveMetadata[Long] = instance[Long]("Long")
   @volatile implicit lazy val ShortResultMetadata: ResultPrimitiveMetadata[Short] = instance[Short]("Short")
 
