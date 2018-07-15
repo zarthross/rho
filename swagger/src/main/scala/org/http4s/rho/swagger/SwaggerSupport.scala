@@ -11,17 +11,16 @@ import shapeless._
 import scala.reflect.runtime.universe._
 
 object SwaggerSupport {
-  def apply[F[_]: Monad](implicit etag: WeakTypeTag[F[_]]): SwaggerSupport[F] = new SwaggerSupport[F] {}
+  def apply[F[_]: Monad](): SwaggerSupport[F] = new SwaggerSupport[F] {}
 }
 
-abstract class SwaggerSupport[F[_]](implicit F: Monad[F], etag: WeakTypeTag[F[_]]) extends SwaggerSyntax[F] {
+abstract class SwaggerSupport[F[_]](implicit F: Monad[F]) extends SwaggerSyntax[F] {
 
   /**
     * Create a RhoMiddleware adding a route to get the Swagger json file
     * representing the full API
     */
   def createRhoMiddleware(
-      swaggerFormats: SwaggerFormats = DefaultSwaggerFormats,
       apiPath: TypedPath[F, HNil] = TypedPath(PathMatch("swagger.json")),
       apiInfo: Info = Info(title = "My API", version = "1.0.0"),
       swaggerRoutesInSwagger: Boolean = false,
@@ -35,7 +34,7 @@ abstract class SwaggerSupport[F[_]](implicit F: Monad[F], etag: WeakTypeTag[F[_]
       vendorExtensions: Map[String, AnyRef] = Map.empty): RhoMiddleware[F] = { routes =>
 
     lazy val swaggerSpec: Swagger =
-      createSwagger(swaggerFormats, apiInfo, host, basePath, schemes, consumes, produces, security, securityDefinitions, vendorExtensions)(
+      createSwagger(apiInfo, host, basePath, schemes, consumes, produces, security, securityDefinitions, vendorExtensions)(
         routes ++ (if(swaggerRoutesInSwagger) swaggerRoute else Seq.empty )
       )
 
@@ -49,7 +48,6 @@ abstract class SwaggerSupport[F[_]](implicit F: Monad[F], etag: WeakTypeTag[F[_]
     * Create the swagger model for a set of routes.
     */
   def createSwagger(
-      swaggerFormats: SwaggerFormats = DefaultSwaggerFormats,
       apiInfo: Info = Info(title = "My API", version = "1.0.0"),
       host: Option[String] = None,
       basePath: Option[String] = None,
@@ -60,18 +58,18 @@ abstract class SwaggerSupport[F[_]](implicit F: Monad[F], etag: WeakTypeTag[F[_]
       securityDefinitions: Map[String, SecuritySchemeDefinition] = Map.empty,
       vendorExtensions: Map[String, AnyRef] = Map.empty)(routes: Seq[RhoRoute[F, _]]): Swagger = {
 
-    val sb = new SwaggerModelsBuilder(swaggerFormats)
-    routes.foldLeft(Swagger())((s, r) => sb.mkSwagger(apiInfo, r)(s))
-      .copy(
-        host = host,
-        basePath = basePath,
-        schemes = schemes,
-        consumes = consumes,
-        produces = produces,
-        security = security,
-        securityDefinitions = securityDefinitions,
-        vendorExtensions = vendorExtensions
-      )
+    routes.foldLeft(Swagger(
+      info = Option(apiInfo),
+      host = host,
+      basePath = basePath,
+      schemes = schemes,
+      consumes = consumes,
+      produces = produces,
+      security = security,
+      securityDefinitions = securityDefinitions,
+      vendorExtensions = vendorExtensions)) {
+      (s, r) => SwaggerModelsBuilder.mkSwagger(r)(s)
+    }
   }
 
   /**

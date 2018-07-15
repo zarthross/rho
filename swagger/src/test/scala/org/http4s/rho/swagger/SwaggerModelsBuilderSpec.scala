@@ -31,7 +31,7 @@ object SwaggerModelsBuilderSpec {
     DefaultFormats
 
   implicit def jsonParser[A : TypeTag : ClassTag]: StringParser[IO, A] = new StringParser[IO, A] with FailureResponseOps[IO] {
-    override val metadata: Option[TypeTag[A]] =
+    override val typeTag: Option[TypeTag[A]] =
       implicitly[TypeTag[A]].some
 
     override def parse(s: String)(implicit F: Monad[IO]): ResultResponse[IO, A] = {

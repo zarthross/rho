@@ -19,34 +19,48 @@ case class StatusOnly(status: Status) extends ResultInfo
 
 
 sealed trait ResultMetadata[T] {
-  def name: String
+  def simpleName: String
+  def fullName: String = ""
+
+  def isCollection: Boolean = false
+  def isOptional: Boolean = false
 }
 final case class ListResultMetadata[L[_], T](items: ResultMetadata[T]) extends ResultMetadata[L[T]] {
-  def name: String = s"List[${items.name}]"
+  def simpleName: String = s"List[${items.simpleName}]"
+
+  override val isCollection: Boolean = true
 }
 final case class OptionResultMetadata[T](item: ResultMetadata[T]) extends ResultPrimitiveMetadata[Option[T]] {
-  def name: String = s"Option[${item.name}]"
+  def simpleName: String = s"Option[${item.simpleName}]"
+
+  override val isOptional: Boolean = true
 }
-final case class ObjectResultMetadata[T](name: String, properties: Map[String, ResultMetadata.Tpe]) extends ResultMetadata[T]
+final case class ObjectResultMetadata[T](simpleName: String, properties: Map[String, ResultMetadata.Tpe]) extends ResultMetadata[T]
 
 
 object ResultPrimitiveMetadata {
   type Tpe = ResultPrimitiveMetadata[_]
 
   def apply[T](implicit resultMetadata: ResultPrimitiveMetadata[T]): ResultPrimitiveMetadata[T] = resultMetadata
+
+  def from[F](implicit resultMetadata: ResultPrimitiveMetadata[F]): {
+    def to[T]: ResultPrimitiveMetadata[T] // TODO: Clean this up.
+  } = new {
+    def to[T]: ResultPrimitiveMetadata[T] = resultMetadata.asInstanceOf[ResultPrimitiveMetadata[T]]
+  }
 }
 trait ResultPrimitiveMetadata[T] extends ResultMetadata[T] {
 
 }
 trait ResultPrimitiveMetadataInstances {
   @volatile implicit lazy val simpleStringResultMetadata: ResultPrimitiveMetadata[String] = new ResultPrimitiveMetadata[String] {
-    val name: String = "String"
+    val simpleName: String = "string"
   }
 
   protected def instance[T](name: String): ResultPrimitiveMetadata[T] = {
     val nme = name
     new ResultPrimitiveMetadata[T] {
-      val name: String = nme
+      val simpleName: String = nme
     }
   }
 
@@ -68,6 +82,12 @@ object ResultMetadata extends ResultMetaDataInstances with ResultPrimitiveMetada
   type Tpe = ResultMetadata[_]
 
   def apply[T](implicit resultMetadata: ResultMetadata[T]): ResultMetadata[T] = resultMetadata
+
+  def from[F](implicit resultMetadata: ResultMetadata[F]): {
+    def to[T]: ResultMetadata[T]
+  } = new {
+    def to[T]: ResultMetadata[T] = resultMetadata.asInstanceOf[ResultMetadata[T]]
+  }
 }
 
 trait ResultMetaDataInstances {
@@ -84,12 +104,12 @@ trait ResultMetadataLowPriority {
   // This just removes errors because the type class isn't defined
   import scala.reflect.runtime.universe.WeakTypeTag
   implicit def generic[T](implicit typetag: WeakTypeTag[T]): ResultPrimitiveMetadata[T] = new ResultPrimitiveMetadata[T] {
-    val name = typetag.tpe.typeSymbol.name.toString
+    val simpleName = typetag.tpe.typeSymbol.name.toString
 
-    override def hashCode(): Int = name.hashCode
+    override def hashCode(): Int = simpleName.hashCode
 
     override def equals(o: scala.Any): Boolean = o match {
-      case r: ResultMetadata[_] => r.name == name
+      case r: ResultMetadata[_] => r.simpleName == simpleName
       case _ => false
     }
   }

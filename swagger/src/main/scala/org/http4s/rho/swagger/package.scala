@@ -3,7 +3,6 @@ package org.http4s.rho
 import fs2.Stream
 import org.http4s.Method
 import org.http4s.rho.bits.{PathAST, SecurityScopesMetaData, TextMetaData}
-import org.http4s.rho.swagger.models.Model
 import shapeless.{HList, HNil}
 
 import scala.reflect.runtime.universe._
@@ -72,25 +71,13 @@ package object swagger {
     def isStream: Boolean =
       t <:< typeOf[Stream[G forSome { type G[_] }, _]]
 
+    def isEffect(et: Type): Boolean =
+      t <:< et
+
     def isUnitOrVoid: Boolean =
       t =:= typeOf[Unit] || t =:= typeOf[java.lang.Void]
 
     def isSwaggerFile: Boolean =
       t <:< typeOf[SwaggerFileResponse[_]]
   }
-
-  val DefaultSwaggerFormats: SwaggerFormats = {
-    val ignoreExistentialType: PartialFunction[Type, Set[Model]] = {
-      case ExistentialType(_, _) => Set.empty
-    }
-
-    SwaggerFormats(
-      ignoreExistentialType,
-      SwaggerFormats.emptyFieldSerializers
-    )
-  }
-
-  val EmptySwaggerFormats: SwaggerFormats =
-    SwaggerFormats(SwaggerFormats.emptySerializers, SwaggerFormats.emptyFieldSerializers)
-
 }

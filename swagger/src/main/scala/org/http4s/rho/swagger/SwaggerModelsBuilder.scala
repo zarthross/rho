@@ -11,21 +11,21 @@ import org.log4s.getLogger
 import scala.reflect.runtime.universe._
 import scala.util.control.NonFatal
 
-private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
+private[swagger] object SwaggerModelsBuilder {
   import models._
 
   private[this] val logger = getLogger
 
-  def mkSwagger[F[_]](info: Info, rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Swagger =
-    Swagger(
-      info        = info.some,
-      paths       = collectPaths(rr)(s),
-      definitions = collectDefinitions(rr)(s))
+  def mkSwagger[F[_]](rr: RhoRoute[F, _])(s: Swagger): Swagger =
+    s.copy(
+      paths       = collectPaths(rr)(s.paths),
+      definitions = collectDefinitions(rr)(s.definitions)
+    )
 
-  def collectPaths[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Map[String, Path] = {
+  def collectPaths[F[_]](rr: RhoRoute[F, _])(previousPaths: Map[String, Path]): Map[String, Path] = {
     val pairs = mkPathStrs(rr).map { ps =>
       val o = mkOperation(ps, rr)
-      val p0 = s.paths.getOrElse(ps, Path())
+      val p0 = previousPaths.getOrElse(ps, Path())
       val p1 = rr.method.name.toLowerCase match {
         case "get"     => p0.copy(get = o.some)
         case "put"     => p0.copy(put = o.some)
@@ -40,18 +40,18 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
       }
       ps -> p1
     }
-    pairs.foldLeft(s.paths) { case (paths, (s, p)) => paths.updated(s, p) }
+    pairs.foldLeft(previousPaths) { case (paths, (s, p)) => paths.updated(s, p) }
   }
 
-  def collectDefinitions[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Map[String, Model] = {
-    val initial: Set[Model] = s.definitions.values.toSet
-    (collectResultTypes(rr) ++ collectCodecTypes(rr) ++ collectQueryTypes(rr))
+  def collectDefinitions[F[_]](rr: RhoRoute[F, _])(previousDefs: Map[String, Model]): Map[String, Model] = {
+    val initial: Set[Model] = previousDefs.values.toSet
+    (collectResultMetadata(rr) ++ collectCodecTypes(rr) ++ collectQueryTypes(rr))
       .foldLeft(initial)((s, tpe) => s ++ TypeBuilder.collectModels(tpe, s))
       .map(m => m.id2 -> m)
       .toMap
   }
 
-  def collectResultTypes[F[_]](rr: RhoRoute[F, _]): Set[ResultMetadata.Tpe] =
+  def collectResultMetadata[F[_]](rr: RhoRoute[F, _]): Set[ResultMetadata.Tpe] =
     rr.resultInfo.collect {
       case TypeOnly(tpe)         => tpe
       case StatusAndType(_, tpe) => tpe
@@ -73,12 +73,14 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
         case MapRule(r, _)::xs                           => go(r::xs)
         case IgnoreRule(r)::xs                           => go(r::xs)
         case MetaRule(x, q@QueryMetaData(_,_,_,_,_))::xs =>
-          val tpe = q.m.tpe
+          val tpe = q.m
           TypeBuilder.DataType.fromType(tpe) match {
             case _ : TypeBuilder.DataType.ComplexDataType =>
               tpe :: go(x::xs)
             case TypeBuilder.DataType.ContainerDataType(_, Some(_: TypeBuilder.DataType.ComplexDataType), _) =>
-              q.m.tpe.typeArgs.head :: go(x::xs)
+              //q.m.tpe.typeArgs.head :: go(x::xs)
+              // TODO Figure out how to deal with container types in query strings
+              ???
             case _ => go(x::xs)
           }
 
@@ -125,11 +127,11 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
       case _                       => none
     }
 
-  def collectResponses[F[_]](rr: RhoRoute[F, _])(implicit etag: WeakTypeTag[F[_]]): Map[String, Response] =
+  def collectResponses[F[_]](rr: RhoRoute[F, _]): Map[String, Response] =
     rr.resultInfo.collect {
-      case TypeOnly(tpe)         => mkResponse("200", "OK", tpe.some, etag.tpe)
-      case StatusAndType(s, tpe) => mkResponse(s.code.toString, s.reason, tpe.some, etag.tpe)
-      case StatusOnly(s)         => mkResponse(s.code.toString, s.reason, none, etag.tpe)
+      case TypeOnly(tpe)         => mkResponse("200", "OK", tpe.some)
+      case StatusAndType(s, tpe) => mkResponse(s.code.toString, s.reason, tpe.some)
+      case StatusOnly(s)         => mkResponse(s.code.toString, s.reason, none)
     }.toMap
 
   def collectSummary[F[_]](rr: RhoRoute[F, _]): Option[String] = {
@@ -222,7 +224,7 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
     go(rr.rules::Nil)
   }
 
-  def mkOperation[F[_]](pathStr: String, rr: RhoRoute[F, _])(implicit etag: WeakTypeTag[F[_]]): Operation = {
+  def mkOperation[F[_]](pathStr: String, rr: RhoRoute[F, _]): Operation = {
     val parameters = collectOperationParams(rr)
 
     Operation(
@@ -250,7 +252,8 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   }
 
   def mkBodyParam[F[_]](r: CodecRouter[F, _, _]): BodyParameter = {
-    val tpe = r.entityType
+    // TODO: Make a real request body
+    /*val tpe = r.entityType
     val model = if (tpe.isPrimitive) {
       val name = TypeBuilder.DataType(tpe).name
       ModelImpl(id = tpe.fullName, id2 = name, `type` = name.some, isSimple = true)
@@ -258,21 +261,27 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
       val pType = tpe.dealias.typeArgs.head
       ArrayModel(id = tpe.fullName, id2 = tpe.fullName, `type` = "array".some,
         items = RefProperty(title = pType.simpleName.some, ref = pType.simpleName).some)
-    } else RefModel(tpe.fullName, tpe.fullName, tpe.simpleName)
-    BodyParameter(
+    } else RefModel(tpe.fullName, tpe.fullName, tpe.simpleName)*/
+    /*BodyParameter(
       schema      = model.some,
       name        = "body".some,
-      description = tpe.simpleName.some)
+      description = tpe.simpleName.some)*/
+    BodyParameter(
+      schema = none,
+      name = "body".some,
+      description = r.entityType.simpleName.some
+    )
   }
 
   def mkPathParam[F[_]](name: String, description: Option[String], parser: StringParser[F, String]): PathParameter = {
-    val tpe = parser.metadata.map(tag => getType(tag.tpe)).getOrElse("string")
+    val tpe = parser.metadata.simpleName
     PathParameter(`type` = tpe, name = name.some, description = description, required = true)
   }
 
-  def mkResponse(code: String, descr: String, otpe: Option[Type], fType: Type): (String, Response) = {
-
-    def typeToProp(tpe: Type): Option[Property] =
+  def mkResponse(code: String, descr: String, otpe: Option[ResultMetadata.Tpe]): (String, Response) = {
+    // TODO: Make a real response schema
+/*
+    def typeToProp(tpe: ResultMetadata.Tpe): Option[Property] =
       if (Reflector.isExcluded(tpe))
         None
       else if (tpe.isUnitOrVoid)
@@ -285,14 +294,12 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
         mkCollectionProperty(tpe)
       else if (tpe.isStream)
         typeToProp(tpe.dealias.typeArgs(1))
-      else if (tpe.isEffect(fType))
-        typeToProp(tpe.dealias.typeArgs(0))
       else if (tpe.isSwaggerFile)
         AbstractProperty(`type` = "file").some
       else
         RefProperty(ref = tpe.simpleName).some
 
-    def mkPrimitiveProperty(tpe: Type): Property = {
+    def mkPrimitiveProperty(tpe: ResultPrimitiveMetadata.Tpe): Property = {
       import TypeBuilder._
 
       DataType.fromType(tpe) match {
@@ -339,14 +346,15 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
         logger.warn(t)(s"Failed to build model for type ${otpe.get}")
         None
       }
-    }
+    }*/
+    val schema = None // TODO: REMOVE
     code -> Response(description = descr, schema = schema)
   }
 
   def mkQueryParam[F[_]](rule: QueryMetaData[F, _]): Parameter = {
-    val required = !(rule.m.tpe.isOption || rule.default.isDefined)
+    val required = !(rule.m.isOptional || rule.default.isDefined)
 
-    TypeBuilder.DataType(rule.m.tpe) match {
+    TypeBuilder.DataType(rule.m) match {
       case TypeBuilder.DataType.ComplexDataType(nm, _) =>
         QueryParameter(
           `type`       = nm.some,
@@ -426,8 +434,4 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
     else if (as.isEmpty) bs
     else
       as.map(set(_, s"Optional if the following $tpe are satisfied: " + bs.flatMap(_.name).mkString("[",", ", "]")))
-
-  def getType(m: Type): String = {
-    TypeBuilder.DataType(m).name
-  }
 }

@@ -138,7 +138,7 @@ trait RhoDsl[F[_]]
    * Defines a path variable of a URI that should be bound to a route definition
    */
   def pathVar[T](implicit parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
-    pathVar(parser.metadata.name.toString.toLowerCase)(parser)
+    pathVar(parser.metadata.simpleName.toString.toLowerCase)(parser)
 
   /**
    * Defines a path variable of a URI that should be bound to a route definition
