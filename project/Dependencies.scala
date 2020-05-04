@@ -30,12 +30,15 @@ object Dependencies {
 
   lazy val `scala-reflect`     = "org.scala-lang"              % "scala-reflect"
 
-  lazy val coreDeps = libraryDependencies ++= Seq(
-    `scala-reflect` % scalaVersion.value,
-    http4sCore,
-    shapeless,
-    http4sServer % "test",
-    logbackClassic % "test"
+  lazy val coreDeps = Seq(
+    libraryDependencies ++= Seq(
+      `scala-reflect` % scalaVersion.value,
+      http4sCore,
+      shapeless,
+      http4sServer % "test",
+      logbackClassic % "test"
+    ),
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-lang", "scala-reflect")
   )
 
   lazy val halDeps = libraryDependencies ++= Seq(
