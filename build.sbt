@@ -11,13 +11,15 @@ import Dependencies._, RhoPlugin._
 lazy val rho = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
-  .settings(buildSettings: _*)
+  .settings(buildSettings)
   .aggregate(`rho-core`, `rho-hal`, `rho-swagger`, `rho-swagger-ui`, `rho-examples`)
 
 lazy val `rho-core` = project
   .in(file("core"))
   .settings(mimaConfiguration)
-  .settings(buildSettings ++ Seq(
+  .settings(buildSettings)
+  .settings(coreDeps)
+  .settings(
     Compile / unmanagedSourceDirectories ++= {
       val baseDir = baseDirectory.value
 
@@ -29,24 +31,27 @@ lazy val `rho-core` = project
       }
     },
     libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6")
-  ): _*)
+  )
 
 lazy val `rho-hal` = project
   .in(file("hal"))
-  .settings(buildSettings :+ halDeps: _*)
+  .settings(buildSettings)
   .settings(mimaConfiguration)
+  .settings(halDeps)
   .dependsOn(`rho-core`)
 
 lazy val `rho-swagger` = project
   .in(file("swagger"))
-  .settings(buildSettings :+ swaggerDeps: _*)
+  .settings(buildSettings)
   .settings(mimaConfiguration)
+  .settings(swaggerDeps)
   .dependsOn(`rho-core` % "compile->compile;test->test")
 
 lazy val `rho-swagger-ui` = project
   .in(file("swagger-ui"))
-  .settings(buildSettings :+ swaggerUiDeps: _*)
+  .settings(buildSettings)
   .settings(mimaConfiguration)
+  .settings(swaggerUiDeps)
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey]("swaggerUiVersion" -> Dependencies.swaggerUi.revision),
@@ -60,7 +65,7 @@ lazy val docs = project
   .enablePlugins(ScalaUnidocPlugin)
   .enablePlugins(SiteScaladocPlugin)
   .enablePlugins(GhpagesPlugin)
-  .settings(Seq(
+  .settings(
     dontPublish,
     description := "Api Documentation",
     autoAPIMappings := true,
@@ -84,20 +89,18 @@ lazy val docs = project
         (f, d) <- (mappings in (ScalaUnidoc, packageDoc)).value
       } yield (f, s"api/$major.$minor/$d")
     }
-  ))
+  )
   .dependsOn(`rho-core`, `rho-hal`, `rho-swagger`)
 
 lazy val `rho-examples` = project
   .in(file("examples"))
   .disablePlugins(MimaPlugin)
+  .settings(buildSettings)
+  .settings(Revolver.settings)
   .settings(
-    buildSettings ++
-      Revolver.settings ++
-      Seq(
-        exampleDeps,
-        libraryDependencies ++= Seq(logbackClassic, http4sXmlInstances),
-        dontPublish
-      ): _*)
+    exampleDeps,
+    dontPublish
+  )
   .dependsOn(`rho-swagger`, `rho-swagger-ui`, `rho-hal`)
 
 lazy val compilerFlags = Seq(
@@ -135,13 +138,7 @@ lazy val buildSettings = publishing ++
     homepage in ThisBuild := Some(url(homepageUrl)),
     description := "A self documenting DSL build upon the http4s framework",
     license,
-    libraryDependencies ++= Seq(
-      shapeless,
-      http4sServer % "provided",
-      logbackClassic % "test"
-    ),
-    libraryDependencies ++= specs2,
-    libraryDependencies += `scala-reflect` % scalaVersion.value
+    libraryDependencies ++= specs2
   )
 
 // to keep REPL usable
@@ -192,6 +189,11 @@ lazy val extras = pomExtra in ThisBuild := (
       <id>rossabaker</id>
       <name>Ross A. Baker</name>
       <email>ross@rossabaker.com</email>
+    </developer>
+    <developer>
+      <id>zarthross</id>
+      <name>Darren A Gibson</name>
+      <email>zarthross@gmail.com</email>
     </developer>
   </developers>
 )

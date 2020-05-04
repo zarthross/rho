@@ -1,16 +1,20 @@
 import sbt._
 import Keys._
+import explicitdeps.ExplicitDepsPlugin.autoImport._
 
 object Dependencies {
   lazy val http4sVersion = "0.21.4"
   lazy val specs2Version = "4.9.4"
 
+  lazy val http4sCore          = "org.http4s"                 %% "http4s-core"           % http4sVersion     
   lazy val http4sServer        = "org.http4s"                 %% "http4s-server"         % http4sVersion
   lazy val http4sDSL           = "org.http4s"                 %% "http4s-dsl"            % http4sVersion
   lazy val http4sBlaze         = "org.http4s"                 %% "http4s-blaze-server"   % http4sVersion
   lazy val http4sJetty         = "org.http4s"                 %% "http4s-servlet"        % http4sVersion
   lazy val http4sJson4sJackson = "org.http4s"                 %% "http4s-json4s-jackson" % http4sVersion
   lazy val http4sXmlInstances  = "org.http4s"                 %% "http4s-scala-xml"      % http4sVersion
+  lazy val json4sCore          = "org.json4s"                 %% "json4s-core"           % "3.6.7" 
+  lazy val json4sAST           = "org.json4s"                 %% "json4s-ast"            % "3.6.7"    
   lazy val json4s              = "org.json4s"                 %% "json4s-ext"            % "3.6.7"
   lazy val json4sJackson       = "org.json4s"                 %% "json4s-jackson"        % json4s.revision
   lazy val swaggerModels       = "io.swagger"                  % "swagger-models"        % "1.6.1"
@@ -26,8 +30,19 @@ object Dependencies {
 
   lazy val `scala-reflect`     = "org.scala-lang"              % "scala-reflect"
 
+  lazy val coreDeps = libraryDependencies ++= Seq(
+    `scala-reflect` % scalaVersion.value,
+    http4sCore,
+    shapeless,
+    http4sServer % "test",
+    logbackClassic % "test"
+  )
 
-  lazy val halDeps = libraryDependencies ++= Seq(json4sJackson)
+  lazy val halDeps = libraryDependencies ++= Seq(
+    json4sCore, 
+    json4sAST,
+    json4sJackson % "test"
+  )
 
   lazy val swaggerDeps = libraryDependencies ++= Seq(
     scalaXml,
@@ -38,14 +53,17 @@ object Dependencies {
     json4sJackson % "test"
   )
 
-  lazy val swaggerUiDeps = libraryDependencies ++= Seq(swaggerUi)
+  lazy val swaggerUiDeps = Seq(
+    libraryDependencies ++= Seq(swaggerUi),
+    unusedCompileDependenciesFilter -= moduleFilter("org.webjars", "swagger-ui")
+  )
 
   lazy val exampleDeps = libraryDependencies ++= Seq(
+    http4sServer,
     http4sBlaze,
     http4sDSL,
     json4s,
     json4sJackson,
-    http4sJson4sJackson,
     uadetector
   )
 }
