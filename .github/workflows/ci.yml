@@ -7,6 +7,7 @@ jobs:
     name: Scala ${{ matrix.scala }}, Java ${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         java: [1.8, 1.11, 1.14]
         scala: [2.12.11, 2.13.1]
@@ -27,7 +28,7 @@ jobs:
         path: ~/.sbt
         key: sbt-${{ hashFiles('**/build.sbt') }}
     - name: Check formatting
-      if: startsWith(matrix.scala, '2.12.') && (matrix.java == 'adopt@1.8')
+      if: (matrix.java == '1.8')
       run: sbt ++${{ matrix.scala }} scalafmtCheckAll
     - name: Check Binary Compatability 
       run: sbt ++${{ matrix.scala }} mimaReportBinaryIssues
