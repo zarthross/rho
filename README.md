@@ -1,6 +1,7 @@
 ρ: A DSL for building HTTP services with http4s
 -----------------------------------------------
 
+![Build Status](https://github.com/http4s/rho/workflows/CI/badge.svg?branch=master)
 [![Build Status](https://travis-ci.org/http4s/rho.svg?branch=master)](https://travis-ci.org/http4s/rho)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.http4s/rho-core_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.http4s/rho-core_2.12)
 [![Gitter](https://badges.gitter.im/http4s/rho.svg)](https://gitter.im/http4s/rho?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
