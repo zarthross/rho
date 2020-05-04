@@ -13,10 +13,12 @@ import scala.reflect.runtime.universe._
 import scala.collection.immutable.Seq
 
 object SwaggerSupport {
-  def apply[F[_]: Sync](implicit etag: WeakTypeTag[F[_]]): SwaggerSupport[F] = new SwaggerSupport[F] {}
+  def apply[F[_]: Sync](implicit etag: WeakTypeTag[F[_]]): SwaggerSupport[F] =
+    new SwaggerSupport[F] {}
 }
 
-abstract class SwaggerSupport[F[_]](implicit F: Sync[F], etag: WeakTypeTag[F[_]]) extends SwaggerSyntax[F] {
+abstract class SwaggerSupport[F[_]](implicit F: Sync[F], etag: WeakTypeTag[F[_]])
+    extends SwaggerSyntax[F] {
 
   /**
     * Create a RhoMiddleware adding a route to get the Swagger json file
@@ -30,7 +32,7 @@ abstract class SwaggerSupport[F[_]](implicit F: Sync[F], etag: WeakTypeTag[F[_]]
 
     lazy val swaggerSpec: Swagger =
       createSwagger(swaggerFormats, swaggerMetadata)(
-        routes ++ (if(swaggerRoutesInSwagger) swaggerRoute else Seq.empty )
+        routes ++ (if (swaggerRoutesInSwagger) swaggerRoute else Seq.empty)
       )
 
     lazy val swaggerRoute: Seq[RhoRoute[F, _ <: HList]] =
@@ -44,32 +46,35 @@ abstract class SwaggerSupport[F[_]](implicit F: Sync[F], etag: WeakTypeTag[F[_]]
     */
   def createSwagger(
       swaggerFormats: SwaggerFormats = DefaultSwaggerFormats,
-      swaggerMetadata: SwaggerMetadata = SwaggerMetadata())(routes: Seq[RhoRoute[F, _]]): Swagger = {
+      swaggerMetadata: SwaggerMetadata = SwaggerMetadata())(
+      routes: Seq[RhoRoute[F, _]]): Swagger = {
 
     val sb = new SwaggerModelsBuilder(swaggerFormats)
     routes.foldLeft(swaggerMetadata.toSwagger())((s, r) => sb.mkSwagger(r)(s))
   }
 
   /**
-   * Create a RhoRoutes with the route to the Swagger json for the given Swagger Specification.
-   */
+    * Create a RhoRoutes with the route to the Swagger json for the given Swagger Specification.
+    */
   def createSwaggerRoute(
-    swagger: => Swagger,
-    apiPath: TypedPath[F, HNil] = TypedPath(PathMatch("swagger.json"))
-  ): RhoRoutes[F] = new RhoRoutes[F] {
+      swagger: => Swagger,
+      apiPath: TypedPath[F, HNil] = TypedPath(PathMatch("swagger.json"))
+  ): RhoRoutes[F] =
+    new RhoRoutes[F] {
 
-    lazy val response: F[OK[String]] = {
-      val fOk = Ok.apply(
-        Json.mapper()
-          .writerWithDefaultPrettyPrinter()
-          .writeValueAsString(swagger.toJModel)
-      )
+      lazy val response: F[OK[String]] = {
+        val fOk = Ok.apply(
+          Json
+            .mapper()
+            .writerWithDefaultPrettyPrinter()
+            .writeValueAsString(swagger.toJModel)
+        )
 
-      F.map(fOk) { ok =>
-        ok.copy(resp = ok.resp.putHeaders(`Content-Type`(MediaType.application.json)))
+        F.map(fOk) { ok =>
+          ok.copy(resp = ok.resp.putHeaders(`Content-Type`(MediaType.application.json)))
+        }
       }
-    }
 
-    "Swagger documentation" ** GET / apiPath |>> (() => response)
-  }
+      "Swagger documentation" ** GET / apiPath |>> (() => response)
+    }
 }

@@ -28,13 +28,16 @@ object Main extends IOApp {
         tags = List(Tag(name = "hello", description = Some("These are the hello routes.")))
       )
 
-      val swaggerUiRhoMiddleware = SwaggerUi[IO].createRhoMiddleware(blocker, swaggerMetadata = metadata)
+      val swaggerUiRhoMiddleware =
+        SwaggerUi[IO].createRhoMiddleware(blocker, swaggerMetadata = metadata)
       val myRoutes = new MyRoutes[IO](ioSwagger).toRoutes(swaggerUiRhoMiddleware)
 
       BlazeServerBuilder[IO](global)
         .withHttpApp(myRoutes.orNotFound)
         .bindLocal(port)
-        .serve.compile.drain
+        .serve
+        .compile
+        .drain
         .as(ExitCode.Success)
     }
 }

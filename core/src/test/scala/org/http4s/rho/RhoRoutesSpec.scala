@@ -16,13 +16,15 @@ class RhoRoutesSpec extends Specification with RequestRunner {
   def construct(method: Method, s: String, h: Header*): Request[IO] =
     Request(method, Uri.fromString(s).getOrElse(sys.error("Failed.")), headers = Headers.of(h: _*))
 
-  def Get(s: String, h: Header*): Request[IO] = construct(Method.GET, s, h:_*)
-  def Put(s: String, h: Header*): Request[IO] = construct(Method.PUT, s, h:_*)
+  def Get(s: String, h: Header*): Request[IO] = construct(Method.GET, s, h: _*)
+  def Put(s: String, h: Header*): Request[IO] = construct(Method.PUT, s, h: _*)
 
   val httpRoutes = new RhoRoutes[IO] {
     GET +? param("foo", "bar") |>> { foo: String => Ok(s"just root with parameter 'foo=$foo'") }
 
-    GET / "" +? param("foo", "bar") |>> { _: String => Ok("this definition should be hidden by the previous definition") }
+    GET / "" +? param("foo", "bar") |>> { _: String =>
+      Ok("this definition should be hidden by the previous definition")
+    }
 
     GET / "hello" |>> Ok("route1")
 
@@ -34,7 +36,9 @@ class RhoRoutesSpec extends Specification with RequestRunner {
 
     GET / "hello" / "headers" +? param[Int]("foo") |>> { foo: Int => Ok("route" + foo) }
 
-    GET / "hello" / "default" / "parameter" +? param[Int]("some", 23) |>> { s: Int => Ok("some:" + s) }
+    GET / "hello" / "default" / "parameter" +? param[Int]("some", 23) |>> { s: Int =>
+      Ok("some:" + s)
+    }
 
     // Routes that will have different headers/query string requirements should work together
     GET / "hello" / "compete" +? param[Int]("foo") |>> { foo: Int => Ok("route" + foo) }
@@ -43,15 +47,17 @@ class RhoRoutesSpec extends Specification with RequestRunner {
 
     GET / "hello" / "compete" |>> Ok("route7")
 
-    GET / "hello" / "decoded" / pathVar[String]("v") |>> { foo: String => Ok("route7.5| "+foo)}
+    GET / "hello" / "decoded" / pathVar[String]("v") |>> { foo: String => Ok("route7.5| " + foo) }
 
     // Testing query params
-    GET / "query" / "twoparams" +? (param[Int]("foo") and param[String]("bar")) |>> { (foo: Int, bar: String) =>
-      Ok("twoparams" + foo + bar)
+    GET / "query" / "twoparams" +? (param[Int]("foo").and(param[String]("bar"))) |>> {
+      (foo: Int, bar: String) =>
+        Ok("twoparams" + foo + bar)
     }
 
-    GET / "query" / "twoparams2" +? param[Int]("foo") & param[Option[String]]("bar") |>> { (foo: Int, bar: Option[String]) =>
-      Ok("twoparams2_" + foo + bar.getOrElse("cat"))
+    GET / "query" / "twoparams2" +? param[Int]("foo") & param[Option[String]]("bar") |>> {
+      (foo: Int, bar: Option[String]) =>
+        Ok("twoparams2_" + foo + bar.getOrElse("cat"))
     }
 
     GET / "variadic" / * |>> { tail: List[String] => Ok("route8_" + tail.mkString("/")) }
@@ -61,7 +67,9 @@ class RhoRoutesSpec extends Specification with RequestRunner {
 
     GET / "orders" / pathVar[Int]("id") |>> { id: Int => Ok(id.toString) }
 
-    GET / "options" +? param[Option[String]]("foo") |>> { os: Option[String] => Ok(os.getOrElse("None")) }
+    GET / "options" +? param[Option[String]]("foo") |>> { os: Option[String] =>
+      Ok(os.getOrElse("None"))
+    }
 
     GET / "seq" +? param[Seq[String]]("foo") |>> { os: Seq[String] => Ok(os.mkString(" ")) }
 
@@ -105,7 +113,10 @@ class RhoRoutesSpec extends Specification with RequestRunner {
     }
 
     "Yield `MethodNotAllowed` when invalid method used" in {
-      httpRoutes(Put("/one/two/three")).value.unsafeRunSync().getOrElse(Response.notFound).status must_== Status.MethodNotAllowed
+      httpRoutes(Put("/one/two/three")).value
+        .unsafeRunSync()
+        .getOrElse(Response.notFound)
+        .status must_== Status.MethodNotAllowed
     }
 
     "Consider PathMatch(\"\") a NOOP" in {
@@ -151,7 +162,10 @@ class RhoRoutesSpec extends Specification with RequestRunner {
     }
 
     "NotFound on empty route" in {
-      httpRoutes(Get("/one/two")).value.unsafeRunSync().getOrElse(Response.notFound).status must_== Status.NotFound
+      httpRoutes(Get("/one/two")).value
+        .unsafeRunSync()
+        .getOrElse(Response.notFound)
+        .status must_== Status.NotFound
     }
 
     "Fail a route with a missing query" in {
@@ -195,9 +209,9 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       val req1 = Get("/hello/compete?foo=5")
       val req2 = Get("/hello/compete?foo=bar")
       val req3 = Get("/hello/compete")
-      (checkOk(req1) should_== "route5") and
-        (checkOk(req2) should_== "route6_bar") and
-        (checkOk(req3) should_== "route7")
+      (checkOk(req1) should_== "route5")
+        .and(checkOk(req2) should_== "route6_bar")
+        .and(checkOk(req3) should_== "route7")
     }
 
     "Execute a variadic route" in {
@@ -205,32 +219,30 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       val req2 = Get("/variadic/one")
       val req3 = Get("/variadic/one/two")
 
-      (checkOk(req1) should_== "route8_") and
-        (checkOk(req2) should_== "route8_one") and
-        (checkOk(req3) should_== "route8_one/two")
+      (checkOk(req1) should_== "route8_")
+        .and(checkOk(req2) should_== "route8_one")
+        .and(checkOk(req3) should_== "route8_one/two")
     }
 
     "Perform path 'or' logic" in {
       val req1 = Get("/or1")
       val req2 = Get("/or2")
-      (checkOk(req1) should_== "route9") and
-        (checkOk(req2) should_== "route9")
+      (checkOk(req1) should_== "route9").and(checkOk(req2) should_== "route9")
     }
 
     "Work with options" in {
       val req1 = Get("/options")
       val req2 = Get("/options?foo=bar")
-      (checkOk(req1) should_== "None") and
-        (checkOk(req2) should_== "bar")
+      (checkOk(req1) should_== "None").and(checkOk(req2) should_== "bar")
     }
 
     "Work with collections" in {
       val req1 = Get("/seq")
       val req2 = Get("/seq?foo=bar")
       val req3 = Get("/seq?foo=1&foo=2")
-      (checkOk(req1) should_== "") and
-        (checkOk(req2) should_== "bar") and
-        (checkOk(req3) should_== "1 2")
+      (checkOk(req1) should_== "")
+        .and(checkOk(req2) should_== "bar")
+        .and(checkOk(req3) should_== "1 2")
     }
 
     "Provide the request if desired" in {
@@ -266,10 +278,12 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       }.toRoutes()
 
       val req1 = Request[IO](Method.GET, Uri(path = "/foo").+?("bar", "0"))
-      getBody(service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "Int: 0"
+      getBody(
+        service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "Int: 0"
 
       val req2 = Request[IO](Method.GET, Uri(path = "/foo").+?("bar", "s"))
-      getBody(service(req2).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
+      getBody(
+        service(req2).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
 
       val req3 = Request[IO](Method.GET, Uri(path = "/foo"))
       getBody(service(req3).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "none"
@@ -282,10 +296,12 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       }.toRoutes()
 
       val req1 = Request[IO](Method.GET, Uri(path = "/foo").+?("bar", "0"))
-      getBody(service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: 0"
+      getBody(
+        service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: 0"
 
       val req2 = Request[IO](Method.GET, Uri(path = "/foo").+?("bar", "s"))
-      getBody(service(req2).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
+      getBody(
+        service(req2).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
     }
 
     "Match an empty Option over a bare route" in {
@@ -298,45 +314,48 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       }.toRoutes()
 
       val req1 = Request[IO](Method.GET, Uri(path = "/foo").+?("bar", "s"))
-      getBody(service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
+      getBody(
+        service(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "String: s"
 
       val req2 = Request[IO](Method.GET, Uri(path = "/foo"))
       getBody(service(req2).value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "none"
     }
 
     "work with all syntax elements" in {
-      val reqHeader = existsAnd(headers.`Content-Length`){ h => h.length <= 3 }
+      val reqHeader = existsAnd(headers.`Content-Length`) { h => h.length <= 3 }
 
       val srvc = new RhoRoutes[IO] {
-        POST / "foo" / pathVar[Int] +? param[String]("param") >>> reqHeader ^ EntityDecoder.text[IO] |>> {
-          (_: Int, _: String, _: String) => Ok("success")
+        POST / "foo" / pathVar[Int] +? param[String]("param") >>> reqHeader ^ EntityDecoder
+          .text[IO] |>> { (_: Int, _: String, _: String) =>
+          Ok("success")
         }
       }
 
       val body = Stream.emits(ArraySeq.unsafeWrapArray("foo".getBytes()))
       val uri = Uri.fromString("/foo/1?param=myparam").getOrElse(sys.error("Failed."))
       val req = Request[IO](method = Method.POST, uri = uri, body = body)
-                    .putHeaders(`Content-Type`(MediaType.text.plain),
-                                `Content-Length`.unsafeFromLong("foo".length))
+        .putHeaders(
+          `Content-Type`(MediaType.text.plain),
+          `Content-Length`.unsafeFromLong("foo".length))
 
       val r = srvc.toRoutes()(req)
       getBody(r.value.unsafeRunSync().getOrElse(Response.notFound).body) must_== "success"
 
     }
 
-
-  ////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////
     "Handle errors in the route actions" in {
       val service = new RhoRoutes[IO] {
         GET / "error" |>> { () => throw new Error("an error"); Ok("Wont get here...") }
       }.toRoutes()
       val req = Request[IO](Method.GET, Uri(path = "/error"))
 
-      service(req).value.unsafeRunSync().getOrElse(Response.notFound).status must equalTo(Status.InternalServerError)
+      service(req).value.unsafeRunSync().getOrElse(Response.notFound).status must equalTo(
+        Status.InternalServerError)
     }
 
     "give a None for missing route" in {
-      val service = new RhoRoutes[IO]{}.toRoutes()
+      val service = new RhoRoutes[IO] {}.toRoutes()
       val req = Request[IO](Method.GET, Uri(path = "/missing"))
       service(req).value.unsafeRunSync().getOrElse(Response.notFound).status must_== Status.NotFound
     }
@@ -350,7 +369,7 @@ class RhoRoutesSpec extends Specification with RequestRunner {
       val routes2 = new RhoRoutes[IO] {
         GET / "foo2" |>> "Foo2"
       }
-      val both: RhoRoutes[IO] = routes1 and routes2
+      val both: RhoRoutes[IO] = routes1.and(routes2)
       val bothRoutes = both.toRoutes()
 
       both.getRoutes === routes1.getRoutes ++ routes2.getRoutes
@@ -371,7 +390,7 @@ class RhoRoutesSpec extends Specification with RequestRunner {
 
       val routes2: HttpRoutes[IO] = ("foo" /: routes1).toRoutes()
 
-      val req1 = Request[IO](uri = Uri(path ="/foo/bar"))
+      val req1 = Request[IO](uri = Uri(path = "/foo/bar"))
       getBody(routes2(req1).value.unsafeRunSync().getOrElse(Response.notFound).body) === "bar"
     }
   }

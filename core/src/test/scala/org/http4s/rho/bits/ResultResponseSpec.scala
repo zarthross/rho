@@ -5,7 +5,7 @@ import cats.effect.IO
 import org.http4s.rho.io._
 import org.specs2.mutable.Specification
 
-class ResultResponseSpec extends Specification  {
+class ResultResponseSpec extends Specification {
 
   "ResultResponse" should {
 
@@ -19,7 +19,8 @@ class ResultResponseSpec extends Specification  {
     }
 
     "flatMap a SuccessResponse" in {
-      SuccessResponse[IO, Int](3).flatMap(i => SuccessResponse(i.toString)) should_== SuccessResponse[IO, String]("3")
+      SuccessResponse[IO, Int](3).flatMap(i =>
+        SuccessResponse(i.toString)) should_== SuccessResponse[IO, String]("3")
     }
 
     "flatMap a FailureResponse" in {
@@ -53,7 +54,7 @@ class ResultResponseSpec extends Specification  {
         foo <- a
       } yield foo + bar
 
-      (result1 should_== a) and (result2 should_== a)
+      (result1 should_== a).and(result2 should_== a)
     }
   }
 }

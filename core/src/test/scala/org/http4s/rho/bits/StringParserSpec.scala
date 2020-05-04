@@ -76,12 +76,14 @@ class StringParserSpec extends Specification {
     }
 
     "parse uuid" in {
-      new UUIDParser[IO]().parse("459043db-c29e-4dd9-a36d-b3a11b5eeb17") === SuccessResponse[IO, UUID](
+      new UUIDParser[IO]()
+        .parse("459043db-c29e-4dd9-a36d-b3a11b5eeb17") === SuccessResponse[IO, UUID](
         UUID.fromString("459043db-c29e-4dd9-a36d-b3a11b5eeb17"))
     }
 
     "parse non-uuid" in {
-      new UUIDParser[IO]().parse("459043b-4dd9-a36d-b3a11b5eeb17") must haveClass[FailureResponse[IO]]
+      new UUIDParser[IO]()
+        .parse("459043b-4dd9-a36d-b3a11b5eeb17") must haveClass[FailureResponse[IO]]
     }
   }
 
@@ -100,9 +102,8 @@ class StringParserSpec extends Specification {
   "RMapped StringParser" should {
 
     val rmappedParser = new IntParser[IO].rmap(i =>
-      if(i >= 0) SuccessResponse(i)
-      else FailureResponseOps[IO].badRequest("Only non-negative integers are accepted.")
-    )
+      if (i >= 0) SuccessResponse(i)
+      else FailureResponseOps[IO].badRequest("Only non-negative integers are accepted."))
 
     "succeed when base parser has succeeded and the mapping function has returned a SuccessResponse" in {
       rmappedParser.parse("1") === SuccessResponse[IO, Int](1)

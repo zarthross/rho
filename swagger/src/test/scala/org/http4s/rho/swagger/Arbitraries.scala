@@ -11,29 +11,29 @@ import org.scalacheck._
 import scala.collection.immutable.ListMap
 
 /**
- * Arbitraries for the creation of Swagger models
- *
- * They can be improved by
- *  - generating more data where Gen.const or Map.empty is used
- *  - making sure the models are coherent in terms of parameters / properties / responses / definitions
- */
+  * Arbitraries for the creation of Swagger models
+  *
+  * They can be improved by
+  *  - generating more data where Gen.const or Map.empty is used
+  *  - making sure the models are coherent in terms of parameters / properties / responses / definitions
+  */
 object Arbitraries {
 
   implicit def ArbitrarySwagger: Arbitrary[Swagger] =
     Arbitrary {
       for {
-        swagger              <- identifier
-        info                 <- option(genInfo)
-        host                 <- option(genHost)
-        basePath             <- option(genBasePath)
-        schemes              <- listOf(genScheme)
-        consumes             <- listOf(genMediaType)
-        produces             <- listOf(genMediaType)
-        definitions          <- mapOf[Model]
-        paths                <- mapOf(genPath(definitions))
-        securityDefinitions  <- mapOf(genSecurityDefinition)
-        parameters           <- mapOf[Parameter]
-        externalDocs         <- option(genExternalDocs)
+        swagger <- identifier
+        info <- option(genInfo)
+        host <- option(genHost)
+        basePath <- option(genBasePath)
+        schemes <- listOf(genScheme)
+        consumes <- listOf(genMediaType)
+        produces <- listOf(genMediaType)
+        definitions <- mapOf[Model]
+        paths <- mapOf(genPath(definitions))
+        securityDefinitions <- mapOf(genSecurityDefinition)
+        parameters <- mapOf[Parameter]
+        externalDocs <- option(genExternalDocs)
       } yield Swagger(
         swagger,
         info,
@@ -42,7 +42,7 @@ object Arbitraries {
         schemes,
         consumes,
         produces,
-        ListMap(paths.toSeq:_*),
+        ListMap(paths.toSeq: _*),
         securityDefinitions,
         definitions,
         parameters,
@@ -70,13 +70,13 @@ object Arbitraries {
       text.html
     ).map(_.show)
 
-  def listOf[T : Arbitrary]: Gen[List[T]] =
+  def listOf[T: Arbitrary]: Gen[List[T]] =
     listOf(arbitrary[T])
 
   def listOf[T](gen: Gen[T]): Gen[List[T]] =
     choose(0, 4).flatMap(n => listOfN(n, gen))
 
-  def mapOf[T : Arbitrary]: Gen[Map[String, T]] =
+  def mapOf[T: Arbitrary]: Gen[Map[String, T]] =
     mapOf(arbitrary[T])
 
   def mapOf[T](gen: Gen[T]): Gen[Map[String, T]] =
@@ -84,43 +84,43 @@ object Arbitraries {
 
   def genPath(definitions: Map[String, Model]): Gen[Path] =
     for {
-      get              <- option(genOperation(definitions))
-      put              <- option(genOperation(definitions))
-      post             <- option(genOperation(definitions))
-      delete           <- option(genOperation(definitions))
-      patch            <- option(genOperation(definitions))
-      options          <- option(genOperation(definitions))
-      head             <- option(genOperation(definitions))
-      parameters       <- listOf[Parameter]
+      get <- option(genOperation(definitions))
+      put <- option(genOperation(definitions))
+      post <- option(genOperation(definitions))
+      delete <- option(genOperation(definitions))
+      patch <- option(genOperation(definitions))
+      options <- option(genOperation(definitions))
+      head <- option(genOperation(definitions))
+      parameters <- listOf[Parameter]
       vendorExtensions <- const(Map.empty[String, Any])
     } yield Path(
-        get,
-        put,
-        post,
-        delete,
-        patch,
-        options,
-        head,
-        parameters,
-        vendorExtensions
-      )
+      get,
+      put,
+      post,
+      delete,
+      patch,
+      options,
+      head,
+      parameters,
+      vendorExtensions
+    )
 
-  def genOperation(definitions: Map[String, Model]): Gen[Operation] = for {
-    tags             <- listOf(identifier)
-    summary          <- option(identifier)
-    description      <- option(identifier)
-    operationId      <- option(identifier)
-    schemes          <- listOf(genScheme)
-    consumes         <- listOf(genMediaType)
-    produces         <- listOf(genMediaType)
-    parameters       <- listOf[Parameter]
-    responses        <- mapOf(genResponse(definitions))
-    security         <- const(Nil)
-    externalDocs     <- option(genExternalDocs)
-    deprecated       <- arbitrary[Boolean]
-    vendorExtensions <- const(Map.empty[String, Any])
-  } yield
-    Operation(
+  def genOperation(definitions: Map[String, Model]): Gen[Operation] =
+    for {
+      tags <- listOf(identifier)
+      summary <- option(identifier)
+      description <- option(identifier)
+      operationId <- option(identifier)
+      schemes <- listOf(genScheme)
+      consumes <- listOf(genMediaType)
+      produces <- listOf(genMediaType)
+      parameters <- listOf[Parameter]
+      responses <- mapOf(genResponse(definitions))
+      security <- const(Nil)
+      externalDocs <- option(genExternalDocs)
+      deprecated <- arbitrary[Boolean]
+      vendorExtensions <- const(Map.empty[String, Any])
+    } yield Operation(
       tags,
       summary,
       description,
@@ -136,13 +136,13 @@ object Arbitraries {
       vendorExtensions
     )
 
-  def genResponse(definitions: Map[String, Model]): Gen[Response] = for {
-    description <- identifier
-    schema      <- option(oneOf(definitions.keys.toList).map(p => RefProperty(p)))
-    examples    <- mapOf(genExample)
-    headers     <- mapOf[Property]
-  } yield
-    Response(
+  def genResponse(definitions: Map[String, Model]): Gen[Response] =
+    for {
+      description <- identifier
+      schema <- option(oneOf(definitions.keys.toList).map(p => RefProperty(p)))
+      examples <- mapOf(genExample)
+      headers <- mapOf[Property]
+    } yield Response(
       description,
       schema,
       examples,
@@ -152,46 +152,49 @@ object Arbitraries {
   def genExample: Gen[String] =
     const("an example")
 
-
   implicit def ArbitraryModel: Arbitrary[Model] =
     Arbitrary {
       for {
-        id                   <- identifier
-        id2                  <- identifier
-        description          <- option(identifier)
-        `type`               <- option(identifier)
-        name                 <- option(identifier)
-        properties           <- mapOf(arbitrary[Property])
-        required             <- choose(0, properties.size - 1).flatMap(n => const(properties.take(n).keys.toList))
-        isSimple             <- arbitrary[Boolean]
-        example              <- option(identifier)
+        id <- identifier
+        id2 <- identifier
+        description <- option(identifier)
+        `type` <- option(identifier)
+        name <- option(identifier)
+        properties <- mapOf(arbitrary[Property])
+        required <-
+          choose(0, properties.size - 1).flatMap(n => const(properties.take(n).keys.toList))
+        isSimple <- arbitrary[Boolean]
+        example <- option(identifier)
         additionalProperties <- Gen.const(None)
-        discriminator        <- Gen.const(None)
-        externalDocs         <- Gen.const(None)
-      } yield
-        ModelImpl(
-          id,
-          id2,
-          description,
-          `type`,
-          name,
-          required,
-          properties,
-          isSimple,
-          example,
-          additionalProperties,
-          discriminator,
-          externalDocs
-        )
+        discriminator <- Gen.const(None)
+        externalDocs <- Gen.const(None)
+      } yield ModelImpl(
+        id,
+        id2,
+        description,
+        `type`,
+        name,
+        required,
+        properties,
+        isSimple,
+        example,
+        additionalProperties,
+        discriminator,
+        externalDocs
+      )
     }
-
 
   def genSecurityDefinition: Gen[SecuritySchemeDefinition] =
     Gen.oneOf(
       OAuth2Definition("authorizationUrl", "tokenUrl", "flow", Map.empty),
-      OAuth2VendorExtensionsDefinition("authorizationUrl", Map("x-issuer"->"issuer", "x-audiences"->"audience"), "flow", Map.empty),
+      OAuth2VendorExtensionsDefinition(
+        "authorizationUrl",
+        Map("x-issuer" -> "issuer", "x-audiences" -> "audience"),
+        "flow",
+        Map.empty),
       ApiKeyAuthDefinition("name", In.HEADER),
-      BasicAuthDefinition)
+      BasicAuthDefinition
+    )
 
   implicit def ArbitraryParameter: Arbitrary[Parameter] =
     Arbitrary {
@@ -218,13 +221,13 @@ object Arbitraries {
   def genExternalDocs: Gen[ExternalDocs] =
     Gen.const(ExternalDocs("description", "url"))
 
-  implicit def GenApplicative: Applicative[Gen] = new Applicative[Gen] {
-    def pure[A](x: A): Gen[A] = Gen.const(x)
-    def ap[A, B](ff: Gen[(A) => B])(fa: Gen[A]): Gen[B] = {
-      fa.flatMap { a =>
-        ff.map(f => f(a))
-      }
+  implicit def GenApplicative: Applicative[Gen] =
+    new Applicative[Gen] {
+      def pure[A](x: A): Gen[A] = Gen.const(x)
+      def ap[A, B](ff: Gen[(A) => B])(fa: Gen[A]): Gen[B] =
+        fa.flatMap { a =>
+          ff.map(f => f(a))
+        }
     }
-  }
 
 }

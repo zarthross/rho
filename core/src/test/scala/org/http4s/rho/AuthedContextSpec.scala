@@ -13,13 +13,12 @@ case class User(name: String, id: UUID)
 object Auth {
   type O[A] = OptionT[IO, A]
 
-  val authUser = Kleisli[O, Request[IO], User]({ _ =>
+  val authUser = Kleisli[O, Request[IO], User] { _ =>
     OptionT.some[IO](User("Test User", UUID.randomUUID()))
-  })
+  }
 
   val authenticated = AuthMiddleware(authUser)
 }
-
 
 object MyAuth extends AuthedContext[IO, User]
 
@@ -27,11 +26,10 @@ object MyRoutes extends RhoRoutes[IO] {
   import MyAuth._
 
   GET +? param("foo", "bar") >>> auth |>> { (foo: String, user: User) =>
-    if (user.name == "Test User") {
+    if (user.name == "Test User")
       Ok(s"just root with parameter 'foo=$foo'")
-    } else {
+    else
       BadRequest("This should not have happened.")
-    }
   }
 
   GET / "public" / pv"place" |>> { path: String => Ok(s"not authenticated at $path") }
@@ -54,7 +52,8 @@ class AuthedContextSpec extends Specification {
       val request = Request[IO](Method.GET, Uri(path = "/"))
       val resp = routes.run(request).value.unsafeRunSync().getOrElse(Response.notFound)
       if (resp.status == Status.Ok) {
-        val body = new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
+        val body =
+          new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
         body should_== "just root with parameter 'foo=bar'"
       } else ko(s"Invalid response code: ${resp.status}")
     }
@@ -63,7 +62,8 @@ class AuthedContextSpec extends Specification {
       val request = Request[IO](Method.GET, Uri(path = "/public/public"))
       val resp = routes.run(request).value.unsafeRunSync().getOrElse(Response.notFound)
       if (resp.status == Status.Ok) {
-        val body = new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
+        val body =
+          new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
         body should_== "not authenticated at public"
       } else ko(s"Invalid response code: ${resp.status}")
     }
@@ -72,7 +72,8 @@ class AuthedContextSpec extends Specification {
       val request = Request[IO](Method.GET, Uri(path = "/private/private"))
       val resp = routes.run(request).value.unsafeRunSync().getOrElse(Response.notFound)
       if (resp.status == Status.Ok) {
-        val body = new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
+        val body =
+          new String(resp.body.compile.toVector.unsafeRunSync().foldLeft(Array[Byte]())(_ :+ _))
         body should_== "Test User at private"
       } else ko(s"Invalid response code: ${resp.status}")
     }

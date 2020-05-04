@@ -12,16 +12,15 @@ import org.http4s.rho.swagger.{SwaggerFileResponse, SwaggerSyntax}
 import org.http4s.{EntityDecoder, Headers, HttpDate, Request, ResponseCookie, Uri, headers}
 import shapeless.HNil
 
-class MyRoutes[F[+_] : Effect](swaggerSyntax: SwaggerSyntax[F])
-  extends RhoRoutes[F] {
+class MyRoutes[F[+_]: Effect](swaggerSyntax: SwaggerSyntax[F]) extends RhoRoutes[F] {
 
   import swaggerSyntax._
 
-  val requireCookie: TypedHeader[F, HNil] = existsAndR(headers.Cookie){ cookie =>
+  val requireCookie: TypedHeader[F, HNil] = existsAndR(headers.Cookie) { cookie =>
     cookie.values.toList.find(c => c.name == "Foo" && c.content == "bar") match {
       case Some(_) => // Cookie found, good to go
         None
-      case None =>    // Didn't find cookie
+      case None => // Didn't find cookie
         Some(TemporaryRedirect(Uri(path = "/addcookie")).widen)
     }
   }
@@ -42,75 +41,80 @@ class MyRoutes[F[+_] : Effect](swaggerSyntax: SwaggerSyntax[F])
     HEAD / "hello" |>> { Ok("Hello head!") }
 
   "Generates some JSON data from a route param, and a query Int" **
-    GET / "result" / pv"foo" +? param[Int]("id") |>> { (name: String, id: Int) => Ok(JsonResult(name, id)) }
+    GET / "result" / pv"foo" +? param[Int]("id") |>> { (name: String, id: Int) =>
+    Ok(JsonResult(name, id))
+  }
 
   "Two different response codes can result from this route based on the number given" **
     GET / "differentstatus" / pathVar[Int] |>> { i: Int =>
-      if (i >= 0) Ok(JsonResult("Good result", i))
-      else BadRequest(s"Negative number: $i")
-    }
+    if (i >= 0) Ok(JsonResult("Good result", i))
+    else BadRequest(s"Negative number: $i")
+  }
 
   // Normally this would be part of the constructor since its creation is 'unsafe'
   private val counterRef = cats.effect.concurrent.Ref.unsafe[F, Int](0)
 
   "This uses a simple counter for the number of times this route has been requested" **
     POST / "counter" |>> { () =>
-      counterRef.modify { i =>
-          val inc = i + 1
-          (inc, inc)
-        }
-        .map { counter => (
-          s"The number is ${counter}")
-        }
-    }
+    counterRef
+      .modify { i =>
+        val inc = i + 1
+        (inc, inc)
+      }
+      .map { counter => (s"The number is ${counter}") }
+  }
 
   "Adds the cookie Foo=bar to the client" **
-  "cookies" @@
-    GET / "addcookie" |>> {
-      Ok("You now have a good cookie!").map(_.addCookie("Foo", "bar"))
-    }
+    "cookies" @@
+      GET / "addcookie" |>> {
+    Ok("You now have a good cookie!").map(_.addCookie("Foo", "bar"))
+  }
 
   "Sets the cookie Foo=barr to the client" **
-  "cookies" @@
-    GET / "addbadcookie" |>> {
-      Ok("You now have an evil cookie!").map(_.addCookie("Foo", "barr"))
-    }
+    "cookies" @@
+      GET / "addbadcookie" |>> {
+    Ok("You now have an evil cookie!").map(_.addCookie("Foo", "barr"))
+  }
 
   "Checks the Foo cookie to make sure its 'bar'" **
-  "cookies" @@
-    GET / "checkcookie" >>> requireCookie |>> Ok("Good job, you have the cookie!")
+    "cookies" @@
+      GET / "checkcookie" >>> requireCookie |>> Ok("Good job, you have the cookie!")
 
   "Clears the cookies" **
-  "cookies" @@
-    GET / "clearcookies" |>> { req: Request[F] =>
-      val hs = req.headers.get(headers.Cookie) match {
-        case None => Headers.empty
-        case Some(cookie) =>
-          Headers(cookie.values.toList.map { c => headers.`Set-Cookie`(ResponseCookie(c.name, c.content, expires = Some(HttpDate.Epoch), maxAge = Some(0)))})
-      }
-
-      Ok("Deleted cookies!").map(_.withHeaders(hs))
+    "cookies" @@
+      GET / "clearcookies" |>> { req: Request[F] =>
+    val hs = req.headers.get(headers.Cookie) match {
+      case None => Headers.empty
+      case Some(cookie) =>
+        Headers(cookie.values.toList.map { c =>
+          headers.`Set-Cookie`(
+            ResponseCookie(c.name, c.content, expires = Some(HttpDate.Epoch), maxAge = Some(0)))
+        })
     }
+
+    Ok("Deleted cookies!").map(_.withHeaders(hs))
+  }
 
   "This route allows your to post stuff" **
-  List("post", "stuff") @@
-    POST / "post" ^ EntityDecoder.text[F] |>> { body: String =>
-      "You posted: " + body
-    }
+    List("post", "stuff") @@
+      POST / "post" ^ EntityDecoder.text[F] |>> { body: String =>
+    "You posted: " + body
+  }
 
   "This route allows your to post stuff with query parameters" **
-  List("post", "stuff", "query") @@
-    POST / "post-query" +? param[String]("query") ^ EntityDecoder.text[F] |>> { (query: String, body: String) =>
-    s"You queried '$query' and posted: $body"
+    List("post", "stuff", "query") @@
+      POST / "post-query" +? param[String]("query") ^ EntityDecoder.text[F] |>> {
+    (query: String, body: String) =>
+      s"You queried '$query' and posted: $body"
   }
 
   "This demonstrates using a process of entities" **
     GET / "stream" |>> {
-      val s = 0 until 100 map (i => s"Hello $i\n")
-      val p: Stream[F, String] = Stream.emits(s).covary[F]
+    val s = (0 until 100).map(i => s"Hello $i\n")
+    val p: Stream[F, String] = Stream.emits(s).covary[F]
 
-      Ok(p)
-    }
+    Ok(p)
+  }
 
   "Get a file" **
     GET / "file" |>> Ok(SwaggerFileResponse("HELLO"))
@@ -129,7 +133,10 @@ object MyRoutes {
     val fooRegex = """([^_]+)_([^_]+)""".r
     StringParser.strParser[F].rmap {
       case fooRegex(k, v) => SuccessResponse(Foo(k, v))
-      case other => FailureResponse.pure[F](FailureResponseOps[F].BadRequest.pure(s"""Invalid value "$other". Expected "{key}_{value}"."""))
+      case other =>
+        FailureResponse.pure[F](
+          FailureResponseOps[F].BadRequest
+            .pure(s"""Invalid value "$other". Expected "{key}_{value}"."""))
     }
   }
 

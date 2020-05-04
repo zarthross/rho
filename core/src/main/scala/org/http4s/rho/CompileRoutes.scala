@@ -26,9 +26,10 @@ trait CompileRoutes[F[_], RouteType] {
 object CompileRoutes {
 
   /** [[CompileRoutes]] that simply returns its argument */
-  def identityCompiler[F[_]]: CompileRoutes[F, Tpe[F]] = new CompileRoutes[F, RhoRoute.Tpe[F]] {
-    def compile[T <: HList](route: RhoRoute[F, T]): RhoRoute[F, T] = route
-  }
+  def identityCompiler[F[_]]: CompileRoutes[F, Tpe[F]] =
+    new CompileRoutes[F, RhoRoute.Tpe[F]] {
+      def compile[T <: HList](route: RhoRoute[F, T]): RhoRoute[F, T] = route
+    }
 
   /** Importable implicit identity compiler */
   object Implicit {
@@ -41,7 +42,7 @@ object CompileRoutes {
     * @return An `HttpRoutes`
     */
   def foldRoutes[F[_]: Defer: Monad](routes: Seq[RhoRoute.Tpe[F]]): HttpRoutes[F] = {
-    val tree = routes.foldLeft(PathTree[F]()){ (t, r) => t.appendRoute(r) }
+    val tree = routes.foldLeft(PathTree[F]()) { (t, r) => t.appendRoute(r) }
     HttpRoutes((req: Request[F]) => tree.getResult(req).toResponse)
   }
 }

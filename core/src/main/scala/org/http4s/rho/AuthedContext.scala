@@ -8,7 +8,6 @@ import org.http4s.rho.bits.{FailureResponseOps, SuccessResponse, TypedHeader}
 import _root_.io.chrisdavenport.vault._
 import cats.effect._
 
-
 /** The [[AuthedContext]] provides a convenient way to define a RhoRoutes
   * which works with http4s authentication middleware.
   * Please note that `AuthMiddleware`-wrapping is mandatory, otherwise context
@@ -60,10 +59,11 @@ class AuthedContext[F[_]: Monad, U] extends FailureResponseOps[F] {
     req.attributes.lookup(authKey)
 
   /** Request matcher to capture authentication information */
-  def auth: TypedHeader[F, U :: HNil] = RhoDsl[F].genericRequestHeaderCapture[U] { req =>
-    getAuth(req) match {
-      case Some(authInfo) => SuccessResponse(authInfo)
-      case None => error("Invalid auth configuration")
+  def auth: TypedHeader[F, U :: HNil] =
+    RhoDsl[F].genericRequestHeaderCapture[U] { req =>
+      getAuth(req) match {
+        case Some(authInfo) => SuccessResponse(authInfo)
+        case None => error("Invalid auth configuration")
+      }
     }
-  }
 }

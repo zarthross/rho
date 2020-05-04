@@ -20,23 +20,22 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   private[this] val logger = getLogger
 
   def mkSwagger[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Swagger =
-    s.copy(
-      paths       = collectPaths(rr)(s),
-      definitions = collectDefinitions(rr)(s))
+    s.copy(paths = collectPaths(rr)(s), definitions = collectDefinitions(rr)(s))
 
-  def collectPaths[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): ListMap[String, Path] = {
+  def collectPaths[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit
+      etag: WeakTypeTag[F[_]]): ListMap[String, Path] = {
     val pairs = mkPathStrs(rr).map { ps =>
       val o = mkOperation(ps, rr)
       val p0 = s.paths.get(ps).getOrElse(Path())
       val p1 = rr.method.name.toLowerCase match {
-        case "get"     => p0.copy(get = o.some)
-        case "put"     => p0.copy(put = o.some)
-        case "post"    => p0.copy(post = o.some)
-        case "delete"  => p0.copy(delete = o.some)
-        case "patch"   => p0.copy(patch = o.some)
+        case "get" => p0.copy(get = o.some)
+        case "put" => p0.copy(put = o.some)
+        case "post" => p0.copy(post = o.some)
+        case "delete" => p0.copy(delete = o.some)
+        case "patch" => p0.copy(patch = o.some)
         case "options" => p0.copy(options = o.some)
-        case "head"    => p0.copy(head = o.some)
-        case unknown   =>
+        case "head" => p0.copy(head = o.some)
+        case unknown =>
           logger.warn("unrecognized method: " + unknown)
           p0
       }
@@ -45,7 +44,8 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
     pairs.foldLeft(s.paths) { case (paths, (s, p)) => paths.updated(s, p) }
   }
 
-  def collectDefinitions[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit etag: WeakTypeTag[F[_]]): Map[String, Model] = {
+  def collectDefinitions[F[_]](rr: RhoRoute[F, _])(s: Swagger)(implicit
+      etag: WeakTypeTag[F[_]]): Map[String, Model] = {
     val initial: Set[Model] = s.definitions.values.toSet
     (collectResultTypes(rr) ++ collectCodecTypes(rr) ++ collectQueryTypes(rr))
       .foldLeft(initial)((s, tpe) => s ++ TypeBuilder.collectModels(tpe, s, formats, etag.tpe))
@@ -55,104 +55,107 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
 
   def collectResultTypes[F[_]](rr: RhoRoute[F, _]): Set[Type] =
     rr.resultInfo.collect {
-      case TypeOnly(tpe)         => tpe
+      case TypeOnly(tpe) => tpe
       case StatusAndType(_, tpe) => tpe
     }
 
   def collectCodecTypes[F[_]](rr: RhoRoute[F, _]): Set[Type] =
     rr.router match {
       case r: CodecRouter[F, _, _] => Set(r.entityType)
-      case _                    => Set.empty
+      case _ => Set.empty
     }
 
   def collectQueryTypes[F[_]](rr: RhoRoute[F, _]): Seq[Type] = {
     def go(stack: List[RequestRule[F]]): List[Type] =
       stack match {
-        case Nil                                         => Nil
-        case AndRule(a, b)::xs                           => go(a::b::xs)
-        case OrRule(a, b)::xs                            => go(a::b::xs)
-        case (EmptyRule() | CaptureRule(_))::xs          => go(xs)
-        case MapRule(r, _)::xs                           => go(r::xs)
-        case IgnoreRule(r)::xs                           => go(r::xs)
-        case MetaRule(x, q@QueryMetaData(_,_,_,_,_))::xs =>
+        case Nil => Nil
+        case AndRule(a, b) :: xs => go(a :: b :: xs)
+        case OrRule(a, b) :: xs => go(a :: b :: xs)
+        case (EmptyRule() | CaptureRule(_)) :: xs => go(xs)
+        case MapRule(r, _) :: xs => go(r :: xs)
+        case IgnoreRule(r) :: xs => go(r :: xs)
+        case MetaRule(x, q @ QueryMetaData(_, _, _, _, _)) :: xs =>
           val tpe = q.m.tpe
           TypeBuilder.DataType.fromType(tpe) match {
-            case _ : TypeBuilder.DataType.ComplexDataType =>
-              tpe :: go(x::xs)
-            case TypeBuilder.DataType.ContainerDataType(_, Some(_: TypeBuilder.DataType.ComplexDataType), _) =>
-              q.m.tpe.dealias.typeArgs.head :: go(x::xs)
-            case _ => go(x::xs)
+            case _: TypeBuilder.DataType.ComplexDataType =>
+              tpe :: go(x :: xs)
+            case TypeBuilder.DataType
+                  .ContainerDataType(_, Some(_: TypeBuilder.DataType.ComplexDataType), _) =>
+              q.m.tpe.dealias.typeArgs.head :: go(x :: xs)
+            case _ => go(x :: xs)
           }
 
-        case MetaRule(x, _)::xs => go(x::xs)
+        case MetaRule(x, _) :: xs => go(x :: xs)
       }
 
-    go(rr.rules::Nil)
+    go(rr.rules :: Nil)
   }
 
   def mkPathStrs[F[_]](rr: RhoRoute[F, _]): List[String] = {
 
     def go(stack: List[PathOperation], pathStr: String): String =
       stack match {
-        case Nil                          => if(pathStr.isEmpty) "/" else pathStr
-        case PathMatch("") :: Nil         => pathStr + "/"
-        case PathMatch("") :: xs          => go(xs, pathStr)
-        case PathMatch(s) :: xs           => go(xs, pathStr + "/" + s)
-        case MetaCons(_, _) :: xs         => go(xs, pathStr)
-        case PathCapture(id, _, _, _)::xs => go(xs, s"$pathStr/{$id}")
-        case CaptureTail :: _             => pathStr + "/{tail...}"
+        case Nil => if (pathStr.isEmpty) "/" else pathStr
+        case PathMatch("") :: Nil => pathStr + "/"
+        case PathMatch("") :: xs => go(xs, pathStr)
+        case PathMatch(s) :: xs => go(xs, pathStr + "/" + s)
+        case MetaCons(_, _) :: xs => go(xs, pathStr)
+        case PathCapture(id, _, _, _) :: xs => go(xs, s"$pathStr/{$id}")
+        case CaptureTail :: _ => pathStr + "/{tail...}"
       }
 
-    linearizeStack(rr.path::Nil).map(go(_, ""))
+    linearizeStack(rr.path :: Nil).map(go(_, ""))
   }
 
   def collectPathParams[F[_]](rr: RhoRoute[F, _]): List[PathParameter] = {
 
     def go(stack: List[PathOperation], pps: List[PathParameter]): List[PathParameter] =
       stack match {
-        case Nil                               => pps
-        case PathMatch("") :: xs               => go(xs, pps)
-        case PathMatch(_) :: xs                => go(xs, pps)
-        case MetaCons(_, _) :: xs              => go(xs, pps)
-        case PathCapture(id, desc, p, _) :: xs => go(xs, mkPathParam[F](id, desc, p.asInstanceOf[StringParser[F, String]])::pps)
-        case CaptureTail :: _                  => PathParameter(`type` = "string", name = "tail...".some) :: Nil
+        case Nil => pps
+        case PathMatch("") :: xs => go(xs, pps)
+        case PathMatch(_) :: xs => go(xs, pps)
+        case MetaCons(_, _) :: xs => go(xs, pps)
+        case PathCapture(id, desc, p, _) :: xs =>
+          go(xs, mkPathParam[F](id, desc, p.asInstanceOf[StringParser[F, String]]) :: pps)
+        case CaptureTail :: _ => PathParameter(`type` = "string", name = "tail...".some) :: Nil
       }
 
-    linearizeStack(rr.path::Nil).flatMap(go(_, Nil)).reverse
+    linearizeStack(rr.path :: Nil).flatMap(go(_, Nil)).reverse
   }
 
   def collectBodyParams[F[_]](rr: RhoRoute[F, _]): Option[BodyParameter] =
     rr.router match {
       case r: CodecRouter[_, _, _] => mkBodyParam(r).some
-      case _                       => none
+      case _ => none
     }
 
-  def collectResponses[F[_]](rr: RhoRoute[F, _])(implicit etag: WeakTypeTag[F[_]]): Map[String, Response] =
+  def collectResponses[F[_]](rr: RhoRoute[F, _])(implicit
+      etag: WeakTypeTag[F[_]]): Map[String, Response] =
     rr.resultInfo.collect {
-      case TypeOnly(tpe)         => mkResponse("200", "OK", tpe.some, etag.tpe)
+      case TypeOnly(tpe) => mkResponse("200", "OK", tpe.some, etag.tpe)
       case StatusAndType(s, tpe) => mkResponse(s.code.toString, s.reason, tpe.some, etag.tpe)
-      case StatusOnly(s)         => mkResponse(s.code.toString, s.reason, none, etag.tpe)
+      case StatusOnly(s) => mkResponse(s.code.toString, s.reason, none, etag.tpe)
     }.toMap
 
   def collectSummary[F[_]](rr: RhoRoute[F, _]): Option[String] = {
 
     def go(stack: List[PathOperation], summary: Option[String]): Option[String] =
       stack match {
-        case PathMatch("") :: Nil          => go(Nil, summary)
-        case PathMatch(_) :: xs            => go(xs, summary)
+        case PathMatch("") :: Nil => go(Nil, summary)
+        case PathMatch(_) :: xs => go(xs, summary)
         case PathCapture(_, _, _, _) :: xs => go(xs, summary)
-        case CaptureTail :: _              => summary
+        case CaptureTail :: _ => summary
 
-        case MetaCons(_, meta)::xs =>
+        case MetaCons(_, meta) :: xs =>
           meta match {
             case RouteDesc(meta) => meta.some
-            case _               => go(xs, summary)
+            case _ => go(xs, summary)
           }
 
         case Nil => summary
       }
 
-    linearizeStack(rr.path::Nil).flatMap(go(_, None)).headOption
+    linearizeStack(rr.path :: Nil).flatMap(go(_, None)).headOption
   }
 
   def collectTags[F[_]](rr: RhoRoute[F, _]): List[String] = {
@@ -182,95 +185,98 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
           }
       }
 
-    linearizeStack(rr.path::Nil).flatMap(go(_, Nil))
+    linearizeStack(rr.path :: Nil).flatMap(go(_, Nil))
   }
 
   def collectSecurityScopes[F[_]](rr: RhoRoute[F, _]): List[Map[String, List[String]]] = {
 
     def go(stack: List[PathOperation]): Option[Map[String, List[String]]] =
-
       stack match {
         case Nil => None
         case MetaCons(_, RouteSecurityScope(secScope)) :: _ => secScope.some
         case _ :: xs => go(xs)
       }
 
-     linearizeStack(rr.path::Nil).flatMap(go)
+    linearizeStack(rr.path :: Nil).flatMap(go)
   }
 
   def collectOperationParams[F[_]](rr: RhoRoute[F, _]): List[Parameter] =
-    collectPathParams(rr) ::: collectQueryParams(rr) ::: collectHeaderParams(rr) ::: collectBodyParams(rr).toList
+    collectPathParams(rr) ::: collectQueryParams(rr) ::: collectHeaderParams(
+      rr) ::: collectBodyParams(rr).toList
 
   def collectQueryParams[F[_]](rr: RhoRoute[F, _]): List[Parameter] = {
     def go(stack: List[RequestRule[F]]): List[Parameter] =
       stack match {
-        case AndRule(a, b)::xs => go(a::b::xs)
-        case MapRule(r, _)::xs => go(r::xs)
-        case (EmptyRule() | CaptureRule(_))::xs => go(xs)
+        case AndRule(a, b) :: xs => go(a :: b :: xs)
+        case MapRule(r, _) :: xs => go(r :: xs)
+        case (EmptyRule() | CaptureRule(_)) :: xs => go(xs)
 
-        case OrRule(a, b)::xs =>
-          val as = go(a::xs)
-          val bs = go(b::xs)
+        case OrRule(a, b) :: xs =>
+          val as = go(a :: xs)
+          val bs = go(b :: xs)
           val set: (Parameter, String) => Parameter =
             (p, s) => p.withDesc(p.description.map(_ + s).orElse(s.some))
 
           addOrDescriptions(set)(as, bs, "params") :::
-          addOrDescriptions(set)(bs, as, "params")
+            addOrDescriptions(set)(bs, as, "params")
 
-        case MetaRule(rs, q@QueryMetaData(_,_,_,_,_))::xs => mkQueryParam[F](q.asInstanceOf[QueryMetaData[F, _]])::go(rs::xs)
+        case MetaRule(rs, q @ QueryMetaData(_, _, _, _, _)) :: xs =>
+          mkQueryParam[F](q.asInstanceOf[QueryMetaData[F, _]]) :: go(rs :: xs)
 
-        case MetaRule(rs, m: TextMetaData)::xs =>
-          go(rs::Nil).map(_.withDesc(m.msg.some)) ::: go(xs)
+        case MetaRule(rs, m: TextMetaData) :: xs =>
+          go(rs :: Nil).map(_.withDesc(m.msg.some)) ::: go(xs)
 
-        case MetaRule(a, _)::xs => go(a::xs)
+        case MetaRule(a, _) :: xs => go(a :: xs)
 
-        case IgnoreRule(r)::xs => go(r::xs)
+        case IgnoreRule(r) :: xs => go(r :: xs)
 
         case Nil => Nil
       }
 
-    go(rr.rules::Nil)
+    go(rr.rules :: Nil)
   }
 
   def collectHeaderParams[F[_]](rr: RhoRoute[F, _]): List[HeaderParameter] = {
     def go(stack: List[RequestRule[F]]): List[HeaderParameter] =
       stack match {
-        case Nil                                   => Nil
-        case AndRule(a,b)::xs                      => go(a::b::xs)
-        case MetaRule(a,HeaderMetaData(key,r))::xs => mkHeaderParam(key, r)::go(a::xs)
-        case MetaRule(a,_)::xs                     => go(a::xs)
-        case (EmptyRule() | CaptureRule(_))::xs    => go(xs)
-        case MapRule(r,_)::xs                      => go(r::xs)
-        case IgnoreRule(r)::xs                     => go(r::xs)
-        case OrRule(a, b)::xs =>
-          val as = go(a::xs)
-          val bs = go(b::xs)
+        case Nil => Nil
+        case AndRule(a, b) :: xs => go(a :: b :: xs)
+        case MetaRule(a, HeaderMetaData(key, r)) :: xs => mkHeaderParam(key, r) :: go(a :: xs)
+        case MetaRule(a, _) :: xs => go(a :: xs)
+        case (EmptyRule() | CaptureRule(_)) :: xs => go(xs)
+        case MapRule(r, _) :: xs => go(r :: xs)
+        case IgnoreRule(r) :: xs => go(r :: xs)
+        case OrRule(a, b) :: xs =>
+          val as = go(a :: xs)
+          val bs = go(b :: xs)
           val set: (HeaderParameter, String) => HeaderParameter =
             (p, s) => p.copy(description = p.description.map(_ + s).orElse(s.some))
           addOrDescriptions(set)(as, bs, "headers") :::
-          addOrDescriptions(set)(bs, as, "headers")
+            addOrDescriptions(set)(bs, as, "headers")
       }
 
-    go(rr.rules::Nil)
+    go(rr.rules :: Nil)
   }
 
   def renderMediaRange: MediaRange => String = {
-    case tpe: MediaType    => tpe.show
+    case tpe: MediaType => tpe.show
     case range: MediaRange => range.show
   }
 
-  def mkOperation[F[_]](pathStr: String, rr: RhoRoute[F, _])(implicit etag: WeakTypeTag[F[_]]): Operation = {
+  def mkOperation[F[_]](pathStr: String, rr: RhoRoute[F, _])(implicit
+      etag: WeakTypeTag[F[_]]): Operation = {
     val parameters = collectOperationParams(rr)
 
     Operation(
-      tags        = collectTags(rr),
-      summary     = collectSummary(rr),
-      consumes    = rr.validMedia.toList.map(renderMediaRange),
-      produces    = rr.responseEncodings.toList.map(_.show),
+      tags = collectTags(rr),
+      summary = collectSummary(rr),
+      consumes = rr.validMedia.toList.map(renderMediaRange),
+      produces = rr.responseEncodings.toList.map(_.show),
       operationId = mkOperationId(pathStr, rr.method, parameters).some,
-      parameters  = parameters,
-      security    = collectSecurityScopes(rr),
-      responses   = collectResponses(rr))
+      parameters = parameters,
+      security = collectSecurityScopes(rr),
+      responses = collectResponses(rr)
+    )
   }
 
   def mkOperationId(path: String, method: Method, parameters: List[Parameter]): String = {
@@ -279,7 +285,8 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
       else parameters.flatMap(_.name).mkString("-", "-", "")
 
     method.toString.toLowerCase +
-      path.split("/")
+      path
+        .split("/")
         .filter(s => !s.isEmpty && !(s.startsWith("{") && s.endsWith("}")))
         .map(_.capitalize)
         .mkString +
@@ -293,23 +300,33 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
       ModelImpl(id = tpe.fullName, id2 = name, `type` = name.some, isSimple = true)
     } else if (tpe.isCollection) {
       val pType = tpe.dealias.typeArgs.head
-      ArrayModel(id = tpe.fullName, id2 = tpe.fullName, `type` = "array".some,
+      ArrayModel(
+        id = tpe.fullName,
+        id2 = tpe.fullName,
+        `type` = "array".some,
         items = RefProperty(title = pType.simpleName.some, ref = pType.simpleName).some)
     } else RefModel(tpe.fullName, tpe.fullName, tpe.simpleName)
     BodyParameter(
-      schema      = model.some,
-      name        = "body".some,
+      schema = model.some,
+      name = "body".some,
       description = tpe.simpleName.some,
       required = !tpe.isOption
     )
   }
 
-  def mkPathParam[F[_]](name: String, description: Option[String], parser: StringParser[F, String]): PathParameter = {
+  def mkPathParam[F[_]](
+      name: String,
+      description: Option[String],
+      parser: StringParser[F, String]): PathParameter = {
     val tpe = parser.typeTag.map(tag => getType(tag.tpe)).getOrElse("string")
     PathParameter(`type` = tpe, name = name.some, description = description, required = true)
   }
 
-  def mkResponse(code: String, descr: String, otpe: Option[Type], fType: Type): (String, Response) = {
+  def mkResponse(
+      code: String,
+      descr: String,
+      otpe: Option[Type],
+      fType: Type): (String, Response) = {
 
     def typeToProp(tpe: Type): Option[Property] =
       if (Reflector.isExcluded(tpe))
@@ -374,9 +391,10 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
 
     val schema = {
       try otpe.flatMap(typeToProp)
-      catch { case NonFatal(t) =>
-        logger.warn(t)(s"Failed to build model for type ${otpe.get}")
-        None
+      catch {
+        case NonFatal(t) =>
+          logger.warn(t)(s"Failed to build model for type ${otpe.get}")
+          None
       }
     }
     code -> Response(description = descr, schema = schema)
@@ -385,15 +403,17 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   def mkQueryParam[F[_]](rule: QueryMetaData[F, _]): Parameter = {
     val required = !(rule.m.tpe.isOption || rule.default.isDefined)
 
-    val tpe = if(rule.m.tpe.isOption) rule.m.tpe.dealias.typeArgs.head else rule.m.tpe
+    val tpe = if (rule.m.tpe.isOption) rule.m.tpe.dealias.typeArgs.head else rule.m.tpe
     TypeBuilder.DataType(tpe) match {
       case TypeBuilder.DataType.ComplexDataType(nm, _) =>
         QueryParameter(
-          `type`       = nm.some,
-          name         = rule.name.some,
-          description  = rule.description,
-          required     = required,
-          defaultValue = rule.default.map(_ => "") // TODO ideally need to use the parser to serialize it into string
+          `type` = nm.some,
+          name = rule.name.some,
+          description = rule.description,
+          required = required,
+          defaultValue =
+            rule.default.map(_ =>
+              "") // TODO ideally need to use the parser to serialize it into string
         )
       // XXX uniqueItems is indeed part of `parameter` api,
       // see here: http://swagger.io/specification/#parameterObject
@@ -409,50 +429,48 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
         }
 
         QueryParameter(
-          name         = rule.name.some,
-          items        = itemTpe,
-          required     = required,
-          description  = rule.description,
-          defaultValue = rule.default.map(_ => ""), // TODO ideally need to put something like [...] here
-          isArray      = true
+          name = rule.name.some,
+          items = itemTpe,
+          required = required,
+          description = rule.description,
+          defaultValue =
+            rule.default.map(_ => ""), // TODO ideally need to put something like [...] here
+          isArray = true
         )
 
       case TypeBuilder.DataType.ValueDataType(nm, _, _) =>
         QueryParameter(
-          `type`       = nm.some,
-          name         = rule.name.some,
-          description  = rule.description,
-          required     = required,
+          `type` = nm.some,
+          name = rule.name.some,
+          description = rule.description,
+          required = required,
           defaultValue = rule.default.map(_.toString)
         )
 
       case TypeBuilder.DataType.EnumDataType(enums) =>
         QueryParameter(
-          `type`       = "string".some,
-          name         = rule.name.some,
-          description  = rule.description,
-          required     = required,
+          `type` = "string".some,
+          name = rule.name.some,
+          description = rule.description,
+          required = required,
           defaultValue = rule.default.map(_.toString),
-          enums        = enums.toList
+          enums = enums.toList
         )
     }
   }
 
   def mkHeaderParam(key: HeaderKey.Extractable, isRequired: Boolean): HeaderParameter =
-    HeaderParameter(
-      `type`   = "string",
-      name     = key.name.toString.some,
-      required = isRequired)
+    HeaderParameter(`type` = "string", name = key.name.toString.some, required = isRequired)
 
   def linearizeStack(stack: List[PathRule]): List[List[PathOperation]] = {
 
     def go(stack: List[PathRule], acc: List[PathOperation]): List[List[PathOperation]] =
       stack match {
-        case PathOr(a, b) :: xs         => go(a::xs, acc):::go(b::xs, acc)
-        case PathAnd(a, b) :: xs        => go(a::b::xs, acc)
-        case (m@ MetaCons(a, _)) :: xs  => go(a::xs, m::acc)
-        case (op: PathOperation) :: xs  => go(xs, op::acc)
-        case Nil                        => acc::Nil
+        case PathOr(a, b) :: xs => go(a :: xs, acc) ::: go(b :: xs, acc)
+        case PathAnd(a, b) :: xs => go(a :: b :: xs, acc)
+        case (m @ MetaCons(a, _)) :: xs => go(a :: xs, m :: acc)
+        case (op: PathOperation) :: xs => go(xs, op :: acc)
+        case Nil => acc :: Nil
       }
 
     go(stack, Nil).map(_.reverse)
@@ -461,13 +479,18 @@ private[swagger] class SwaggerModelsBuilder(formats: SwaggerFormats) {
   def addParamToPath(path: Path, param: Parameter): Path =
     path.copy(parameters = param :: path.parameters)
 
-  def addOrDescriptions[A <: Parameter](set: (A, String) => A)(as: List[A], bs: List[A], tpe: String): List[A] =
+  def addOrDescriptions[A <: Parameter](
+      set: (A, String) => A)(as: List[A], bs: List[A], tpe: String): List[A] =
     if (bs.isEmpty) as
     else if (as.isEmpty) bs
     else
-      as.map(set(_, s"Optional if the following $tpe are satisfied: " + bs.flatMap(_.name).mkString("[",", ", "]")))
+      as.map(
+        set(
+          _,
+          s"Optional if the following $tpe are satisfied: " + bs
+            .flatMap(_.name)
+            .mkString("[", ", ", "]")))
 
-  def getType(m: Type): String = {
+  def getType(m: Type): String =
     TypeBuilder.DataType(m).name
-  }
 }

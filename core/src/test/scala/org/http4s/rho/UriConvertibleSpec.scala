@@ -20,11 +20,14 @@ object UriConvertibleSpec extends Specification {
       val query = List(ParamVarExp("ref", "path"))
       val tpl = UriTemplate(path = path, query = query)
 
-      UriConvertible.respectPathInfo(Success(tpl), request).get.toString must equalTo("/some/here?ref={path}")
+      UriConvertible.respectPathInfo(Success(tpl), request).get.toString must equalTo(
+        "/some/here?ref={path}")
     }
     "do nothing if URI template is not available" in {
       val request = Request[IO]()
-      UriConvertible.respectPathInfo(Failure(new Exception("URI not available")), request).isFailure must_== true
+      UriConvertible
+        .respectPathInfo(Failure(new Exception("URI not available")), request)
+        .isFailure must_== true
     }
   }
 

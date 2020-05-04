@@ -7,9 +7,9 @@ import shapeless.HList
 
 /** Converter of an value of type F to the HList of type T
   *
- * @tparam T HList type of the incoming values
- * @tparam U type of element onto which T will be mapped
- */
+  * @tparam T HList type of the incoming values
+  * @tparam U type of element onto which T will be mapped
+  */
 trait HListToFunc[F[_], T <: HList, -U] {
   def toAction(f: U): Action[F, T]
 }
@@ -24,22 +24,35 @@ trait MatchersHListToFunc[F[_]] {
     *
     * @tparam R type of result
     */
-  implicit def const0[R](implicit F: Monad[F], m: ResultMatcher[F, R]): HListToFunc[F, HNil, R] = new MatcherHListToFunc[HNil, R] {
-    override def matcher: ResultMatcher[F, R] = m
-    override def conv(r: R): (Request[F], HNil) => F[Response[F]] = (req, _) => m.conv(req, r)
-  }
+  implicit def const0[R](implicit F: Monad[F], m: ResultMatcher[F, R]): HListToFunc[F, HNil, R] =
+    new MatcherHListToFunc[HNil, R] {
+      override def matcher: ResultMatcher[F, R] = m
+      override def conv(r: R): (Request[F], HNil) => F[Response[F]] = (req, _) => m.conv(req, r)
+    }
 
   /** Converter for types `FunctionN` to an `HList` */
-  implicit def instance[T <: HList, TR <: HList, FU, R](implicit F: Monad[F], fp: FnToProduct.Aux[FU, TR => R], rev: Reverse.Aux[T, TR], m: ResultMatcher[F, R]): HListToFunc[F, T, FU] = new MatcherHListToFunc[T, FU] {
-    override def matcher: ResultMatcher[F, R] = m
-    override def conv(f: FU): (Request[F], T) => F[Response[F]] = (req: Request[F], h: T) => { matcher.conv(req, f.toProduct(rev(h))) }
-  }
+  implicit def instance[T <: HList, TR <: HList, FU, R](implicit
+      F: Monad[F],
+      fp: FnToProduct.Aux[FU, TR => R],
+      rev: Reverse.Aux[T, TR],
+      m: ResultMatcher[F, R]): HListToFunc[F, T, FU] =
+    new MatcherHListToFunc[T, FU] {
+      override def matcher: ResultMatcher[F, R] = m
+      override def conv(f: FU): (Request[F], T) => F[Response[F]] =
+        (req: Request[F], h: T) => { matcher.conv(req, f.toProduct(rev(h))) }
+    }
 
   /** Converter for types `FunctionN` where the first element is a `Request` to an `HList` */
-  implicit def instance1[T <: HList, TR <: HList, FU, R](implicit F: Monad[F], fp: FnToProduct.Aux[FU, Request[F] :: TR => R], rev: Reverse.Aux[T, TR], m: ResultMatcher[F, R]): HListToFunc[F, T, FU] = new MatcherHListToFunc[T, FU] {
-    override def matcher: ResultMatcher[F, R] = m
-    override def conv(f: FU): (Request[F], T) => F[Response[F]] = (req: Request[F], h: T) => { matcher.conv(req, f.toProduct(req :: rev(h))) }
-  }
+  implicit def instance1[T <: HList, TR <: HList, FU, R](implicit
+      F: Monad[F],
+      fp: FnToProduct.Aux[FU, Request[F] :: TR => R],
+      rev: Reverse.Aux[T, TR],
+      m: ResultMatcher[F, R]): HListToFunc[F, T, FU] =
+    new MatcherHListToFunc[T, FU] {
+      override def matcher: ResultMatcher[F, R] = m
+      override def conv(f: FU): (Request[F], T) => F[Response[F]] =
+        (req: Request[F], h: T) => { matcher.conv(req, f.toProduct(req :: rev(h))) }
+    }
 
   // for convenience
   private trait MatcherHListToFunc[T <: HList, -FU] extends HListToFunc[F, T, FU] {

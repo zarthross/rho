@@ -38,7 +38,8 @@ trait RhoDslPathExtractors[F[_]] {
   /**
     * Defines a path variable of a URI with description that should be bound to a route definition
     */
-  def pathVar[T](id: String, description: String)(implicit parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
+  def pathVar[T](id: String, description: String)(implicit
+      parser: StringParser[F, T]): TypedPath[F, T :: HNil] =
     TypedPath(PathCapture[F](id, Some(description), parser, stringTag))
 
 }
@@ -49,6 +50,7 @@ object RhoDslPathExtractors {
 
   class PathCaptureStringContext[F[_]](val sc: StringContext) extends AnyVal {
     def pv(): TypedPath[F, String :: HNil] =
-      TypedPath[F, String :: HNil](PathCapture(sc.parts.mkString, None, StringParser.strParser, stringTag))
+      TypedPath[F, String :: HNil](
+        PathCapture(sc.parts.mkString, None, StringParser.strParser, stringTag))
   }
 }

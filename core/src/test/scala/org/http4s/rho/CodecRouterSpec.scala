@@ -17,8 +17,8 @@ class CodecRouterSpec extends Specification {
   "A CodecRouter in a RhoRoutes" should {
 
     val routes = new RhoRoutes[IO] {
-      (POST / "foo" decoding(EntityDecoder.text[IO])) |>> { s: String => Ok(s"Received: $s") }
-      (POST / "form" decoding(UrlForm.entityDecoder[IO])) |>> { _: UrlForm => Ok("success") }
+      ((POST / "foo").decoding(EntityDecoder.text[IO])) |>> { s: String => Ok(s"Received: $s") }
+      ((POST / "form").decoding(UrlForm.entityDecoder[IO])) |>> { _: UrlForm => Ok("success") }
     }.toRoutes()
 
     "Decode a valid body" in {
@@ -38,7 +38,7 @@ class CodecRouterSpec extends Specification {
       val h = Headers.of(headers.`Content-Type`(MediaType.application.`x-www-form-urlencoded`))
       val req = Request[IO](Method.POST, Uri(path = "/form"), headers = h, body = b)
 
-      routes(req).value.unsafeRunSync().map(_.status) must be some Status.BadRequest
+      (routes(req).value.unsafeRunSync().map(_.status) must be).some(Status.BadRequest)
     }
   }
 }

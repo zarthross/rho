@@ -28,19 +28,21 @@ trait StringParser[F[_], T] extends ResponseGeneratorInstances[F] {
   def rmap[U](f: T => ResultResponse[F, U])(implicit ttu: TypeTag[U]): StringParser[F, U] =
     new RMappedParser[F, T, U](this, f, ttu)
 
-  protected def invalidNumberFormat[A](n: String)(implicit F: Monad[F]): FailureResponse[F] = FailureResponse.pure[F] {
-    BadRequest.pure(s"Invalid number format: '$n'")
-  }
+  protected def invalidNumberFormat[A](n: String)(implicit F: Monad[F]): FailureResponse[F] =
+    FailureResponse.pure[F] {
+      BadRequest.pure(s"Invalid number format: '$n'")
+    }
 }
 
 class BooleanParser[F[_]] extends StringParser[F, Boolean] {
   override val typeTag: Some[TypeTag[Boolean]] = Some(implicitly[TypeTag[Boolean]])
 
-  override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Boolean] = s match {
-    case "true"  => SuccessResponse(true)
-    case "false" => SuccessResponse(false)
-    case _       => FailureResponse.pure[F] { BadRequest.pure(s"Invalid boolean format: '$s'") }
-  }
+  override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Boolean] =
+    s match {
+      case "true" => SuccessResponse(true)
+      case "false" => SuccessResponse(false)
+      case _ => FailureResponse.pure[F] { BadRequest.pure(s"Invalid boolean format: '$s'") }
+    }
 }
 
 class DoubleParser[F[_]] extends StringParser[F, Double] {
@@ -102,9 +104,8 @@ class InstantParser[F[_]] extends StringParser[F, Instant] {
   override val typeTag = Some(implicitly[TypeTag[Instant]])
 
   override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, Instant] =
-    try {
-      SuccessResponse(Instant.parse(s))
-    } catch {
+    try SuccessResponse(Instant.parse(s))
+    catch {
       case NonFatal(_) =>
         FailureResponse.pure[F] {
           BadRequest.pure(s"Invalid instant format, should be in 'yyyy-MM-ddThh:mm:ssZ' format: $s")
@@ -125,10 +126,15 @@ class UUIDParser[F[_]] extends StringParser[F, UUID] {
     }
 }
 
-private class RMappedParser[F[_], T, U](base: StringParser[F, T], f: T => ResultResponse[F, U], ttu: TypeTag[U]) extends StringParser[F, U] {
+private class RMappedParser[F[_], T, U](
+    base: StringParser[F, T],
+    f: T => ResultResponse[F, U],
+    ttu: TypeTag[U])
+    extends StringParser[F, U] {
   override def typeTag: Option[TypeTag[U]] = Some(ttu)
 
-  override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, U] = base.parse(s).flatMap(f)
+  override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, U] =
+    base.parse(s).flatMap(f)
 }
 
 object StringParser {
@@ -145,11 +151,12 @@ object StringParser {
   implicit def instantParser[F[_]]: InstantParser[F] = new InstantParser[F]()
   implicit def uuidParser[F[_]]: UUIDParser[F] = new UUIDParser[F]()
 
-  implicit def strParser[F[_]]: StringParser[F, String] = new StringParser[F, String] {
+  implicit def strParser[F[_]]: StringParser[F, String] =
+    new StringParser[F, String] {
 
-    override val typeTag: Some[TypeTag[String]] = Some(implicitly[TypeTag[String]])
+      override val typeTag: Some[TypeTag[String]] = Some(implicitly[TypeTag[String]])
 
-    override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, String] =
-      SuccessResponse(s)
-  }
+      override def parse(s: String)(implicit F: Monad[F]): ResultResponse[F, String] =
+        SuccessResponse(s)
+    }
 }
